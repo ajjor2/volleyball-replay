@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Volleyball Team Season Stats</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Basic table styling */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 0.5rem;
+            margin-bottom: 1.5rem; /* Space between tables */
+            font-size: 0.875rem; /* text-sm */
+        }
+        th, td {
+            border: 1px solid #d1d5db; /* gray-300 */
+            padding: 0.4rem 0.6rem;
+            text-align: left;
+        }
+        th {
+            background-color: #f3f4f6; /* gray-100 */
+            font-weight: 600; /* semibold */
+        }
+        /* Style for summary rows in tables */
+        .summary-row td {
+            font-style: italic;
+            color: #4b5563; /* gray-600 */
+            background-color: #f9fafb; /* gray-50 */
+        }
+         /* Style for game headers */
+        .game-header {
+            font-size: 1.1rem; /* text-lg */
+            font-weight: 600; /* semibold */
+            margin-top: 1.5rem; /* mt-6 */
+            margin-bottom: 0.5rem; /* mb-2 */
+            padding-bottom: 0.25rem; /* pb-1 */
+            border-bottom: 1px solid #e5e7eb; /* gray-200 */
+        }
+        /* Status message styles */
+        .status-message { margin-top: 0.5rem; font-size: 0.875rem; height: 1.25rem; }
+        .status-loading { color: #2563eb; } /* blue-600 */
+        .status-error { color: #dc2626; } /* red-600 */
+        .status-success { color: #16a34a; } /* green-600 */
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans p-4 md:p-8">
+
+    <div class="container mx-auto max-w-5xl bg-white p-6 rounded-lg shadow-lg">
+
+        <h1 class="text-2xl font-bold text-center mb-4 text-gray-800">Volleyball Team Season Stats Aggregator</h1>
+
+        <div class="mb-6 p-4 border border-gray-300 rounded-md bg-gray-50">
+            <label for="team-matches-url" class="block text-sm font-medium text-gray-700 mb-1">Team Matches URL:</label>
+            <div class="flex space-x-2">
+                <input type="text" id="team-matches-url" class="flex-grow p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="Paste getMatches?team_id=... URL here">
+                <button id="load-team-data-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-md transition duration-150 ease-in-out whitespace-nowrap">
+                    Load & Calculate Stats
+                </button>
+            </div>
+            <div id="load-status" class="status-message">Enter a team URL to load matches.</div>
+        </div>
+
+        <div id="results-area">
+            </div>
+
+    </div>
+
+    <script>
+        // --- APPLICATION LOGIC ---
+
+        // --- Configuration ---
+        const API_BASE_URL = "https://lentopallo-api.torneopal.net/taso/rest/"; // Base for constructing getMatch URLs
+        const ALLOWED_HOSTNAME = "lentopallo-api.torneopal.net"; // Optional: Restrict source domain for security
+
+        // --- DOM Elements ---
+        // References to HTML elements used for interaction and display
+        const teamMatchesUrlInput = document.getElementById('team-matches-url');
+        const loadTeamDataBtn = document.getElementById('load-team-data-btn');
+        const loadStatusEl = document.getElementById('load-status');
+        const resultsAreaEl = document.getElementById('results-area');
+
+        // --- Global State ---
+        // Variables holding the application's current state
+        let teamIdOfInterest = null; // The team ID extracted from the input URL, used for filtering stats
+        let aggregateStats = {}; // Holds aggregated stats across all processed games for the team of interest
+        let perGameStats = []; // Array storing the calculated stats object for each individual processed game
+
+        // --- Helper Functions ---
+
+        /**
+         * Parses HH:MM:SS time string into seconds from midnight.
+         * Returns null if format is invalid.
+         * @param {string} timeString - Time string like "19:49:15".
+         * @returns {number|null} Total seconds from midnight or null.
+         */
+        function parseTimeToSeconds(timeString) {
+            // Basic validation and parsing
+            if (!timeString || typeof timeString !== 'string') return null;
+            const parts = timeString.split(':');
+            if (parts.length === 3) {
+                const h = parseInt(parts[0], 10);
+                const m = parseInt(parts[1], 10);
+                const s = parseInt(parts[2], 10);
+                if (!isNaN(h) && !isNaN(m) && !isNaN(s)) {
+                    return h * 3600 + m * 60 + s;
+                }
+            }
+            return null; // Return null if format is incorrect or parsing fails
+        }
+
+        /**
+         * Formats total seconds into MM:SS format.
+         * @param {number} totalSeconds - Total elapsed seconds.
+         * @returns {string} Formatted time string "MM:SS" or "--:--".
+         */
+        function formatSecondsToMMSS(totalSeconds) {
+            // Handle null, NaN, or negative inputs
+            if (totalSeconds === null || totalSeconds < 0 || isNaN(totalSeconds)) {
+                return "--:--";
+            }
+            // Calculate minutes and seconds
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = Math.floor(totalSeconds % 60);
+            // Pad with leading zeros if needed
+            const paddedMinutes = String(minutes).padStart(2, '0');
+            const paddedSeconds = String(seconds).padStart(2, '0');
+            return `${paddedMinutes}:${paddedSeconds}`;
+        }
+
+        /**
+         * Sets the status message text and applies appropriate CSS class for styling.
+         * @param {string} message - The message to display.
+         * @param {'info'|'loading'|'error'|'success'} [type='info'] - The type of message for styling.
+         */
+        function setStatus(message, type = 'info') {
+            loadStatusEl.textContent = message;
+            let className = 'status-message '; // Base class
+            // Add type-specific class
+            if (type === 'loading') className += 'status-loading';
+            else if (type === 'error') className += 'status-error';
+            else if (type === 'success') className += 'status-success';
+            loadStatusEl.className = className;
+        }
+
+        // --- Core Stat Calculation Logic ---
+
+        /**
+         * Calculates statistics for a single game from its detailed data object.
+         * Processes events chronologically to determine player points, serves, team stats etc.
+         * @param {object} matchDetail - The detailed match object from a getMatch API call.
+         * @returns {object|null} An object containing calculated stats for the game, or null if processing fails.
+         */
+        function calculateGameStats(matchDetail) {
+            // Validate input data structure
+            if (!matchDetail?.match?.events || !matchDetail?.match?.lineups) {
+                console.error("calculateGameStats: Invalid match detail structure", matchDetail);
+                return null;
+            }
+            console.log(`Calculating stats for match ID: ${matchDetail.match.match_id}`);
+
+            const match = matchDetail.match;
+            // Initialize structure to hold stats for this specific game
+            const gameStats = {
+                matchId: match.match_id,
+                date: match.date,
+                teamAInfo: { id: match.team_A_id, name: match.team_A_name, score: match.fs_A, timeouts: 0, subs: 0, impliedOpponentErrors: 0 },
+                teamBInfo: { id: match.team_B_id, name: match.team_B_name, score: match.fs_B, timeouts: 0, subs: 0, impliedOpponentErrors: 0 },
+                playerStats: {} // { playerId: { name, shirt, team, points, serves, isCaptain } }
+            };
+
+            // 1. Initialize Player Stats structure & Identify Captains for this game
+            match.lineups.forEach(p => {
+                const playerIdStr = String(p.player_id);
+                // Basic validation of player data
+                if (playerIdStr && p.team_id && p.player_name && p.shirt_number !== undefined) {
+                    gameStats.playerStats[playerIdStr] = {
+                        name: p.player_name,
+                        shirt: p.shirt_number,
+                        team: p.team_id === gameStats.teamAInfo.id ? 'A' : 'B',
+                        points: 0, // Initialize running points
+                        serves: 0, // Initialize running serves
+                        isCaptain: p.captain === 'C'
+                    };
+                } else {
+                    console.warn("Skipping invalid lineup entry in calculateGameStats:", p)
+                }
+            });
+
+            // 2. Calculate Team Timeouts & Subs totals for this game
+            (match.events || []).forEach(event => {
+                if (event.code === 'aikalisa') {
+                    if (event.team_id === gameStats.teamAInfo.id) gameStats.teamAInfo.timeouts++;
+                    else if (event.team_id === gameStats.teamBInfo.id) gameStats.teamBInfo.timeouts++;
+                }
+            });
+            // Use substitution_events if available, otherwise count 'vaihto' events
+             const subsEvents = match.substitution_events || (match.events || []).filter(e => e.code === 'vaihto');
+             subsEvents.forEach(sub => {
+                 if (sub.team_id === gameStats.teamAInfo.id) gameStats.teamAInfo.subs++;
+                 else if (sub.team_id === gameStats.teamBInfo.id) gameStats.teamBInfo.subs++;
+             });
+
+            // 3. Process Events Chronologically to Calculate Running Player Stats
+            let currentSet = 0;
+            let teamAPoints = 0; let teamBPoints = 0; // Local score tracking for this game calc
+            let servingTeam = null; let lastServingTeam = null;
+            let playerPositionsA = {}; let playerPositionsB = {}; // Local position tracking
+
+            // Sort events for this specific game by wall_time
+            const sortedGameEvents = [...match.events].sort((a, b) => {
+                if (!a.wall_time || !b.wall_time) return 0;
+                if (a.wall_time < b.wall_time) return -1;
+                if (a.wall_time > b.wall_time) return 1;
+                return 0;
+            });
+
+             // Helper to set starting lineup for a set within this game context
+             const setGameStartingLineup = (setNum) => {
+                 playerPositionsA = {}; playerPositionsB = {};
+                 match.lineups.forEach(p => {
+                     const pid = String(p.player_id);
+                     // Check if player has position data for this set
+                     if (p.playing_position?.[setNum]) {
+                         const zone = p.playing_position[setNum];
+                         if (zone >= 1 && zone <= 6) { // Standard court zones
+                             if (p.team_id === gameStats.teamAInfo.id) playerPositionsA[zone] = pid;
+                             else playerPositionsB[zone] = pid;
+                         }
+                     }
+                 });
+             };
+             // Helper to rotate team within this game context
+            const rotateGameTeam = (teamIdSymbol) => {
+                const currentPositions = teamIdSymbol === 'A' ? playerPositionsA : playerPositionsB; const newPositions = {};
+                newPositions[1] = currentPositions[2]; newPositions[6] = currentPositions[1]; newPositions[5] = currentPositions[6]; newPositions[4] = currentPositions[5]; newPositions[3] = currentPositions[4]; newPositions[2] = currentPositions[3];
+                for (let zone = 1; zone <= 6; zone++) { if (teamIdSymbol === 'A') playerPositionsA[zone] = newPositions[zone] || null; else playerPositionsB[zone] = newPositions[zone] || null; }
+            };
+
+            // Iterate through this game's events to calculate stats
+            for (const event of sortedGameEvents) {
+                let needsRotation = null; let pointScoredBy = null; let scorerPlayerId = null;
+
+                // Update set context if necessary
+                if (event.period && parseInt(event.period) > 0 && parseInt(event.period) !== currentSet) { if (event.code !== 'maali') { currentSet = parseInt(event.period); teamAPoints = 0; teamBPoints = 0; setGameStartingLineup(currentSet); } }
+
+                // Process based on event code
+                switch (event.code) {
+                    case 'aloitajakso': currentSet = parseInt(event.period); teamAPoints = 0; teamBPoints = 0; setGameStartingLineup(currentSet); servingTeam = null; lastServingTeam = null; break;
+                    case 'aloittavajoukkue': servingTeam = event.team_id === gameStats.teamAInfo.id ? 'A' : 'B'; lastServingTeam = servingTeam; const serverIdStart = servingTeam === 'A' ? playerPositionsA[1] : playerPositionsB[1]; if (serverIdStart && gameStats.playerStats[serverIdStart]) { gameStats.playerStats[serverIdStart].serves++; } break;
+                    case 'piste': const scoreMatch = event.description.match(/(\d+)-(\d+)/); if (scoreMatch) { const currentPtsA = teamAPoints; const currentPtsB = teamBPoints; const newPtsA = parseInt(scoreMatch[1]); const newPtsB = parseInt(scoreMatch[2]); pointScoredBy = (newPtsA > currentPtsA) ? 'A' : 'B'; teamAPoints = newPtsA; teamBPoints = newPtsB; if (event.player_id && String(event.player_id) !== '1') { scorerPlayerId = String(event.player_id); if(gameStats.playerStats[scorerPlayerId]) { gameStats.playerStats[scorerPlayerId].points++; } else { console.warn(`Scorer ID ${scorerPlayerId} from event not in lineup for match ${gameStats.matchId}`); } } else { if (pointScoredBy === 'A') gameStats.teamAInfo.impliedOpponentErrors++; else gameStats.teamBInfo.impliedOpponentErrors++; } if (servingTeam && pointScoredBy !== servingTeam) { needsRotation = pointScoredBy; } servingTeam = pointScoredBy; if (lastServingTeam === servingTeam && lastServingTeam !== null) { const serverIdHold = servingTeam === 'A' ? playerPositionsA[1] : playerPositionsB[1]; if (serverIdHold && gameStats.playerStats[serverIdHold]) { gameStats.playerStats[serverIdHold].serves++; } } lastServingTeam = servingTeam; } break;
+                    case 'maali': servingTeam = null; lastServingTeam = null; break; // Reset serving team at set end
+                    case 'lopetaottelu': servingTeam = null; lastServingTeam = null; break; // Reset serving team at game end
+                }
+                // Apply rotation if needed
+                if (needsRotation) { rotateGameTeam(needsRotation); const serverIdRotated = needsRotation === 'A' ? playerPositionsA[1] : playerPositionsB[1]; if (serverIdRotated && gameStats.playerStats[serverIdRotated]) { gameStats.playerStats[serverIdRotated].serves++; } }
+            }
+
+            return gameStats; // Return the calculated stats for this game
+        }
+
+        // --- Aggregate Stats Function ---
+        /**
+         * Adds stats from a single game to the aggregate totals object.
+         * Only aggregates stats for the `teamIdOfInterest`.
+         * @param {object} gameStats - The calculated stats object for a single game.
+         */
+        function aggregateGameStats(gameStats) {
+            if (!gameStats || !teamIdOfInterest) return; // Need game stats and the target team ID
+
+            // Initialize aggregate object if it's the first game processed
+            if (!aggregateStats.players) {
+                aggregateStats = {
+                    players: {}, // { playerId: { name, shirt, points, serves, gamesPlayed, isCaptain } }
+                    team: { timeouts: 0, subs: 0, impliedOpponentErrors: 0, gamesProcessed: 0 }
+                };
+            }
+
+            // Determine which team ('A' or 'B') is the team of interest in this specific game
+            let teamOfInterestSymbol = null;
+            if (String(gameStats.teamAInfo.id) === String(teamIdOfInterest)) teamOfInterestSymbol = 'A';
+            else if (String(gameStats.teamBInfo.id) === String(teamIdOfInterest)) teamOfInterestSymbol = 'B';
+            else return; // This game doesn't involve the team of interest
+
+            const teamData = gameStats[`team${teamOfInterestSymbol}Info`];
+
+            // Aggregate team-level stats
+            aggregateStats.team.timeouts += teamData.timeouts;
+            aggregateStats.team.subs += teamData.subs;
+            aggregateStats.team.impliedOpponentErrors += teamData.impliedOpponentErrors;
+            aggregateStats.team.gamesProcessed++;
+
+            // Aggregate player-level stats
+            for (const playerId in gameStats.playerStats) {
+                const pStats = gameStats.playerStats[playerId];
+                // Only aggregate if the player belongs to the team of interest
+                if (pStats.team === teamOfInterestSymbol) {
+                    // If player not seen before in aggregate, initialize them
+                    if (!aggregateStats.players[playerId]) {
+                        aggregateStats.players[playerId] = {
+                            name: pStats.name,
+                            shirt: pStats.shirt,
+                            points: 0,
+                            serves: 0,
+                            gamesPlayed: 0,
+                            isCaptain: pStats.isCaptain // Carry over captain status
+                        };
+                    } else {
+                        // Update captain status if found later (unlikely but possible)
+                        if (pStats.isCaptain) aggregateStats.players[playerId].isCaptain = true;
+                    }
+                    // Add current game's stats to the aggregate totals
+                    aggregateStats.players[playerId].points += pStats.points;
+                    aggregateStats.players[playerId].serves += pStats.serves;
+                    aggregateStats.players[playerId].gamesPlayed++;
+                }
+            }
+        }
+
+
+        // --- Display Functions ---
+        /** Clears previous results and displays stats tables for all processed games. */
+        function displayAllGameStats() {
+            // resultsAreaEl is cleared in processMatches before calling this
+            // Sort games by date before displaying
+            perGameStats.sort((a, b) => (a.date < b.date ? -1 : 1));
+
+            perGameStats.forEach(game => {
+                if (!game) return; // Skip if stats calculation failed
+
+                const gameDiv = document.createElement('div');
+                // Determine which team is the focus ('A' or 'B' in this game's context)
+                const teamSymbolOfInterest = String(game.teamAInfo.id) === String(teamIdOfInterest) ? 'A' : 'B';
+                const opponentSymbol = teamSymbolOfInterest === 'A' ? 'B' : 'A';
+                const teamOfInterest = game[`team${teamSymbolOfInterest}Info`];
+                const opponentTeam = game[`team${opponentSymbol}Info`];
+
+                // Header for the game
+                const header = document.createElement('h2');
+                header.className = 'game-header';
+                header.textContent = `Game vs ${opponentTeam.name || 'Opponent'} (${game.date || 'N/A'}) - Result: ${teamOfInterest.score || '?'} - ${opponentTeam.score || '?'}`;
+                gameDiv.appendChild(header);
+
+                // Table for this game's stats (only for team of interest)
+                const table = document.createElement('table');
+                table.innerHTML = `
+                    <thead>
+                        <tr><th>#</th><th>Name</th><th>Points</th><th>Serves</th></tr>
+                    </thead>
+                    <tbody></tbody>
+                    <tfoot></tfoot>
+                `;
+                const tbody = table.querySelector('tbody');
+                const tfoot = table.querySelector('tfoot');
+
+                // Populate player rows
+                Object.entries(game.playerStats)
+                    .filter(([pid, stats]) => stats.team === teamSymbolOfInterest && stats.shirt) // Filter for team and players with shirts
+                    .sort(([,a],[,b]) => parseInt(a.shirt) - parseInt(b.shirt))
+                    .forEach(([pid, stats]) => {
+                        const row = tbody.insertRow();
+                         const captainMark = stats.isCaptain ? ' (C)' : '';
+                        row.innerHTML = `
+                            <td>${stats.shirt}</td>
+                            <td>${stats.name}${captainMark}</td>
+                            <td>${stats.points}</td>
+                            <td>${stats.serves}</td>
+                        `;
+                    });
+
+                 // Add summary rows for this game to footer
+                 const errorRow = tfoot.insertRow(); errorRow.classList.add('summary-row');
+                 errorRow.innerHTML = `<td colspan="2">Opponent Errors (Implied)</td><td>${teamOfInterest.impliedOpponentErrors}</td><td>-</td>`;
+                 const subsRow = tfoot.insertRow(); subsRow.classList.add('summary-row');
+                 subsRow.innerHTML = `<td colspan="2">Substitutions</td><td>${teamOfInterest.subs}</td><td>-</td>`;
+                 const timeoutRow = tfoot.insertRow(); timeoutRow.classList.add('summary-row');
+                 timeoutRow.innerHTML = `<td colspan="2">Timeouts Used</td><td>${teamOfInterest.timeouts}</td><td>-</td>`;
+
+                gameDiv.appendChild(table);
+                resultsAreaEl.appendChild(gameDiv); // Append this game's div to the main results area
+            });
+        }
+
+        /** Displays the aggregated total stats table. */
+        function displayAggregateStats() {
+             if (!aggregateStats.players || Object.keys(aggregateStats.players).length === 0) {
+                 console.log("No aggregate stats to display.");
+                 return; // Don't display total table if no stats aggregated
+             }
+
+             const totalDiv = document.createElement('div');
+             const header = document.createElement('h2');
+             header.className = 'game-header';
+             header.textContent = `Aggregate Season Stats (${aggregateStats.team.gamesProcessed} Games Processed)`;
+             totalDiv.appendChild(header);
+
+             const table = document.createElement('table');
+             // Added Games Played column
+             table.innerHTML = `
+                 <thead>
+                     <tr><th>#</th><th>Name</th><th>Total Pts</th><th>Total Srv</th><th>Games</th><th>Avg Pts/G</th><th>Avg Srv/G</th></tr>
+                 </thead>
+                 <tbody></tbody>
+                 <tfoot></tfoot>
+             `;
+             const tbody = table.querySelector('tbody');
+             const tfoot = table.querySelector('tfoot');
+
+             // Populate player rows
+             Object.entries(aggregateStats.players)
+                 .sort(([,a],[,b]) => parseInt(a.shirt) - parseInt(b.shirt))
+                 .forEach(([pid, stats]) => {
+                     const avgPoints = stats.gamesPlayed > 0 ? (stats.points / stats.gamesPlayed).toFixed(1) : '-';
+                     const avgServes = stats.gamesPlayed > 0 ? (stats.serves / stats.gamesPlayed).toFixed(1) : '-';
+                     const captainMark = stats.isCaptain ? ' (C)' : '';
+                     const row = tbody.insertRow();
+                     row.innerHTML = `
+                         <td>${stats.shirt}</td>
+                         <td>${stats.name}${captainMark}</td>
+                         <td>${stats.points}</td>
+                         <td>${stats.serves}</td>
+                         <td>${stats.gamesPlayed}</td>
+                         <td>${avgPoints}</td>
+                         <td>${avgServes}</td>
+                     `;
+                 });
+
+             // Add summary rows to footer (adjust colspan)
+             const errorRow = tfoot.insertRow(); errorRow.classList.add('summary-row');
+             errorRow.innerHTML = `<td colspan="2">Total Opponent Errors (Implied)</td><td>${aggregateStats.team.impliedOpponentErrors}</td><td>-</td><td>-</td><td>-</td><td>-</td>`;
+             const subsRow = tfoot.insertRow(); subsRow.classList.add('summary-row');
+             subsRow.innerHTML = `<td colspan="2">Total Substitutions</td><td>${aggregateStats.team.subs}</td><td>-</td><td>-</td><td>-</td><td>-</td>`;
+             const timeoutRow = tfoot.insertRow(); timeoutRow.classList.add('summary-row');
+             timeoutRow.innerHTML = `<td colspan="2">Total Timeouts Used</td><td>${aggregateStats.team.timeouts}</td><td>-</td><td>-</td><td>-</td><td>-</td>`;
+
+             resultsAreaEl.appendChild(totalDiv); // Append total stats section
+             totalDiv.appendChild(table);
+        }
+
+
+        // --- Main Processing Function ---
+        /**
+         * Processes a list of matches: fetches details, calculates stats, aggregates, displays.
+         * @param {Array} matches - Array of match objects from the getMatches response.
+         */
+        async function processMatches(matches) {
+            // Filter for matches that have status "Played"
+            const playedMatches = matches.filter(m => m.status === 'Played');
+            if (playedMatches.length === 0) {
+                setStatus('No played matches found for this team.', 'info');
+                return;
+            }
+
+            // Reset aggregate stats and per-game stats storage
+            aggregateStats = {};
+            perGameStats = [];
+            resultsAreaEl.innerHTML = ''; // Clear previous results display
+
+            let processedCount = 0;
+            const totalToProcess = playedMatches.length;
+            setStatus(`Processing ${processedCount}/${totalToProcess} played matches...`, 'loading');
+
+            // Process matches sequentially to avoid overwhelming API (potentially)
+            for (const matchStub of playedMatches) {
+                const matchId = matchStub.match_id;
+                if (!matchId) {
+                    console.warn("Skipping match with missing ID", matchStub);
+                    continue; // Skip if no match ID
+                }
+
+                // Construct the URL for the getMatch endpoint
+                const detailUrl = `${API_BASE_URL}getMatch?match_id=${matchId}`;
+
+                try {
+                    console.log(`Fetching details for match ${matchId}...`);
+                    // Fetch detailed data for the individual match
+                    // IMPORTANT: CORS policy of the API server might block this request!
+                    const response = await fetch(detailUrl);
+                    if (!response.ok) {
+                        // Handle HTTP errors (e.g., 404 Not Found, 500 Server Error)
+                        console.warn(`Failed to fetch match ${matchId}: HTTP ${response.status}`);
+                        throw new Error(`HTTP ${response.status}`); // Throw to indicate failure for this match
+                    }
+                    const matchDetail = await response.json();
+
+                    // Validate the structure of the detailed match data
+                    if (!matchDetail?.match?.events || !matchDetail?.match?.lineups) {
+                         console.warn(`Invalid data structure for match ${matchId}. Skipping.`);
+                         continue; // Skip this match if structure is invalid
+                    }
+
+                    // Calculate stats for this specific game
+                    const gameStats = calculateGameStats(matchDetail);
+                    if (gameStats) {
+                        perGameStats.push(gameStats); // Store individual game stats
+                        aggregateGameStats(gameStats); // Add to overall totals
+                    } else {
+                         console.warn(`Stats calculation failed for match ${matchId}. Skipping aggregation.`);
+                    }
+
+                } catch (error) {
+                    // Catch errors during fetch or calculation for a single match
+                    console.error(`Error processing match ${matchId}:`, error);
+                    setStatus(`Error processing match ${matchId}: ${error.message}. Skipping.`, 'error');
+                    // Continue to the next match even if one fails
+                }
+
+                processedCount++;
+                // Update status message periodically
+                setStatus(`Processing ${processedCount}/${totalToProcess} played matches...`, 'loading');
+            } // End of loop through matches
+
+            // Display results after processing all matches
+            displayAllGameStats(); // Display per-game tables
+            displayAggregateStats(); // Display aggregate table
+            setStatus(`Processing complete. Processed ${processedCount} of ${totalToProcess} matches found.`, 'success');
+             // Clear success message after a delay
+             setTimeout(() => { if(loadStatusEl.textContent.startsWith('Processing complete')) loadStatusEl.textContent = '';}, 4000);
+        }
+
+
+        // --- Event Listeners ---
+        /** Handles the click event for the main Load button */
+        loadTeamDataBtn.addEventListener('click', () => {
+            const url = teamMatchesUrlInput.value.trim();
+            teamIdOfInterest = null; // Reset team ID
+
+            // **Input Validation**
+            if (!url) {
+                 setStatus('Please enter a URL.', 'error');
+                 return;
+            }
+            try {
+                 const parsedUrl = new URL(url); // Checks for basic URL validity
+
+                 // Protocol Check (Security: prevent javascript: URLs etc.)
+                 if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+                     throw new Error('URL must start with http:// or https://');
+                 }
+
+                 // Optional: Hostname Check (Security: restrict source domain)
+                 /*
+                 if (ALLOWED_HOSTNAME && parsedUrl.hostname !== ALLOWED_HOSTNAME) {
+                     throw new Error(`Data can only be loaded from ${ALLOWED_HOSTNAME}`);
+                 }
+                 */
+
+                 // Check if it looks like a getMatches URL
+                 if (!parsedUrl.pathname.includes('getMatches')) {
+                     throw new Error('URL does not appear to be a getMatches URL.');
+                 }
+
+                 // Extract team_id (Crucial for filtering stats)
+                 teamIdOfInterest = parsedUrl.searchParams.get('team_id');
+                 if (!teamIdOfInterest) {
+                     throw new Error('URL is missing the required team_id parameter.');
+                 }
+
+                 console.log("URL validated. Team ID extracted:", teamIdOfInterest);
+                 // If validation passes, proceed to fetch the initial match list
+                 loadTeamData(url);
+
+            } catch(e) {
+                 // Catch errors from URL parsing or validation checks
+                 setStatus(`Invalid URL: ${e.message}`, 'error');
+            }
+        });
+
+         /** Fetches the initial list of matches from the getMatches URL */
+         async function loadTeamData(url) {
+            setStatus('Loading match list...', 'loading');
+            loadTeamDataBtn.disabled = true;
+            resultsAreaEl.innerHTML = ''; // Clear previous results
+
+            try {
+                // Fetch the list of matches
+                const response = await fetch(url);
+                if (!response.ok) { throw new Error(`HTTP error! Status: ${response.status}`); }
+                const data = await response.json();
+
+                // Validate structure of the match list response
+                if (!data?.matches || !Array.isArray(data.matches)) {
+                    throw new Error('Invalid response format: Missing "matches" array.');
+                }
+
+                console.log(`Found ${data.matches.length} matches in list.`);
+                // Start processing the found matches (fetches details for each)
+                // processMatches is async but we don't necessarily need to await it here,
+                // as status updates happen within it.
+                processMatches(data.matches);
+
+            } catch(error) {
+                 console.error('Error loading team match list:', error);
+                 setStatus(`Error loading match list: ${error.message}`, 'error');
+                 resetUIState(); // Reset UI on list load failure
+            } finally {
+                 loadTeamDataBtn.disabled = false; // Re-enable button
+            }
+         }
+
+
+        // --- Initial Load ---
+         // Set the initial state when the page loads
+         document.addEventListener('DOMContentLoaded', resetUIState);
+
+    </script>
+
+</body>
+</html>
