@@ -1,67 +1,91 @@
-# Volleyball Game Replay App
+# Volleyball Replay & Stats Apps
 
-## Description
-I am just trying out different LLMs for reading API and making simple app.
+## Project Description
 
-This web application visualizes volleyball game replays based on detailed statistical data provided in a specific JSON format. It allows users to load game data from a URL (primarily tested with data from `lentopallo-api.torneopal.net`) and step through the match event by event, observing player rotations, score changes, and basic statistics.
+This repository contains two related single-page web applications for visualizing and analyzing volleyball match statistics, primarily designed to work with data fetched from the `lentopallo-api.torneopal.net` API.
 
-This application was developed iteratively based on specific data structures and user requests.
+1.  **Single-Game Replay App:** Allows loading detailed data for a single match and replaying it event-by-event with court visualization and running stats.
+2.  **Team Stats Aggregator App:** Takes a team's match list URL, fetches data for all played games in that list, calculates key statistics for each game, and displays both per-game summaries and aggregated season totals for the specified team.
 
-## Features
+## 1. Single-Game Replay App (`volleyball-replay-app-v1.html`)
 
-* **Load Data via URL:** Input field to paste a URL pointing to the game's JSON data (e.g., from `lentopallo-api.torneopal.net/taso/rest/getMatch?match_id=...`). Includes basic URL and data structure validation.
-* **Scoreboard Display:** Shows the current set number, running point score for both teams, and the overall sets won score.
-* **Match Information:** Displays basic match details like Date, Time, Venue, Referee, and Attendance below the scoreboard.
-* **Court Visualization:**
-    * Top-down view of the volleyball court.
-    * Displays player markers (with shirt numbers) in their correct zones based on standard rotations.
-    * Highlights the serving player.
-    * Provides a temporary, enhanced highlight for the player who scored the point (when specified in the data).
-    * Provides a temporary background flash for the court side of the team that lost a point when the scorer isn't specified (potentially indicating an error).
-* **Event Log:** Shows a text description of the current event being displayed (e.g., "Point: 5-4", "Timeout: Team A", "Set 2 Start").
-* **Playback Controls:**
-    * **Previous/Next Event:** Step backward or forward through game events.
-    * **Play/Pause:** Automatically advance through events at a set interval (currently 1.5 seconds).
-    * **Skip to End:** Quickly process all remaining events to show the final stats and game state.
-* **Statistics Display:**
-    * **Player Stats (Running):** Shows Points Scored and Serves Performed by each player, calculated up to the current point in the replay. Also indicates the Team Captain (C).
-    * **Team Summary Stats:** Shows total Timeouts Used, total Substitutions Made, and "Opponent Errors (Implied)" (points gained when the opponent scored without a specific player ID being logged).
+### Description
 
-## How to Use
+This tool provides a visual step-by-step replay of a single volleyball match using its detailed event log data.
 
-1.  **Running the App:**
-    * Host the `volleyball-replay-app-v1.html` file on a static web hosting provider (see Hosting section below).
-    * Alternatively, open the HTML file directly in your web browser (though fetching data via URL might be blocked by CORS in this case).
-2.  **Loading Data:**
-    * Find the URL for the game data JSON. For the Torneopal API, this looks like `https://lentopallo-api.torneopal.net/taso/rest/getMatch?match_id=YOUR_MATCH_ID&timeStamp=...`.
-    * Paste the full URL into the "Game Data URL" input field.
-    * Click the "Load Game" button.
-    * Check the status message below the input field for success or error information.
-3.  **Controlling the Replay:**
-    * Once data is loaded, use the "Previous Event", "Play"/"Pause", "Next Event", and "Skip to End" buttons to navigate through the game.
+### Features
 
-## Technology Stack
+* Loads game data from a provided `getMatch` URL.
+* Displays scoreboard (sets, points).
+* Visualizes player positions on a 2D court based on standard rotations.
+* Highlights the serving player.
+* Provides a temporary, enhanced highlight for the point scorer (when specified in the data).
+* Shows a text description of the current event.
+* Playback Controls: Previous Event, Next Event, Play/Pause (auto-advances ~1.5s per event), Skip to End.
+* Displays running stats per player (Points, Serves) updated during the replay.
+* Displays team summary stats (Timeouts Used, Total Subs, "Opponent Errors (Implied)", "Implied Errors Made").
+* Shows basic match info (Venue, Referee, Attendance, Date, Time).
+* Displays elapsed time within the current set.
 
-* **HTML:** Structure of the application.
-* **CSS:** Styling using **Tailwind CSS** (loaded via CDN).
-* **JavaScript:** Core logic for data processing, state management, replay control, and UI updates (no external libraries).
+### How to Use
 
-## Limitations & Known Issues
+1.  Host the `volleyball-replay-app-v1.html` file or open it directly in a browser.
+2.  Find the `getMatch` URL for the desired game (e.g., `https://lentopallo-api.torneopal.net/taso/rest/getMatch?match_id=701913&timeStamp=...`).
+3.  Paste the URL into the "Game Data URL" input field.
+4.  Click "Load Game".
+5.  Use the playback controls (Previous, Play/Pause, Next, Skip to End) to navigate the replay.
 
-* **CORS (Cross-Origin Resource Sharing):** Fetching data directly from the API URL using the "Load Game" button **may fail** due to browser security restrictions (CORS) if the API server doesn't explicitly allow requests from the domain where the app is hosted.
-    * **Workaround:** For reliable public use, a proxy server would be needed. For personal use, you could manually save the JSON data to a local `.js` file and modify the script to load from there, or use browser tools to temporarily disable CORS (not recommended). Refer to the `hosting-options` document for more details.
-* **Data Format Dependency:** The application is specifically designed to parse the JSON structure provided by the `lentopallo-api.torneopal.net` source. It will likely **not** work with data from other sources or in different formats without significant code modifications.
-* **Stats Accuracy:**
-    * "Opponent Errors (Implied)" is an *estimation* based on points scored where the data source didn't specify the scoring player. It's not a guaranteed error count.
-    * Running stats (points, serves) depend on the correct and complete processing of all game events.
-* **"Previous" Button:** The current implementation uses a basic state history. While functional, going back many steps in very long games might be slightly inefficient or could encounter edge cases if the state saving/restoring needs refinement.
-* **Libero Tracking:** Full libero movement and substitution rules are not currently implemented in the visualization.
+*(Note: This app evolved from an earlier version that used embedded data. The final version described here uses URL loading).*
 
-## Potential Future Enhancements
+## 2. Team Stats Aggregator App (`team-stats-app.html`)
 
-* Implement detailed libero tracking and visualization.
-* Visually indicate substitutions on the court or in the event log.
-* Add support for loading data from local files.
-* Improve error handling for unexpected data variations.
-* Refactor the "Previous" button logic for better performance using state diffing or reversible actions.
-* Add UI options for controlling playback speed.
+### Description
+
+This tool fetches a list of matches for a specific team, processes all completed games from that list, and calculates/displays both per-game and aggregated season statistics for that team.
+
+### Features
+
+* Loads a list of matches from a provided `getMatches` URL (requires a `team_id` parameter).
+* Displays the list of found matches and constructs clickable `getMatch` URLs for each.
+* Automatically fetches detailed data for each match marked as "Played".
+* Calculates per-game stats for the specified team:
+    * Player Points & Serves for that game.
+    * Player "Full Sets Played" (based on starting and not being subbed in/out).
+    * Team Timeouts & Total Substitutions for that game.
+    * "Opponent Errors (Implied)" (Points gained from opponent's unspecified scores).
+    * "Implied Errors Made" (Points lost from own unspecified scores).
+* Displays a separate summary table for each processed game.
+* Calculates and displays aggregate season totals for the specified team:
+    * Total Points, Serves, Games Played, Full Sets Played per player.
+    * Average Points per Full Set and Serves per Full Set per player.
+    * Total Team Timeouts, Subs, Implied Opponent Errors, Implied Errors Made across processed games.
+
+### How to Use
+
+1.  Host the `team-stats-app.html` file or open it directly in a browser.
+2.  Find the `getMatches` URL for the desired team (e.g., `https://lentopallo-api.torneopal.net/taso/rest/getMatches?team_id=50538`).
+3.  Paste the URL into the "Team Matches URL" input field.
+4.  Click "Load & Calculate Stats".
+5.  The app will display the list of found matches and their URLs.
+6.  It will then automatically fetch and process the "Played" games, displaying the per-game stats followed by the aggregate season stats table. This may take some time depending on the number of games.
+
+## Technology Stack (Both Apps)
+
+* **HTML:** Structure
+* **CSS:** Styling via **Tailwind CSS** (loaded from CDN)
+* **JavaScript:** Application logic (fetching, calculation, DOM manipulation) - no external libraries.
+
+## Important Limitations (Both Apps)
+
+* **CORS (Cross-Origin Resource Sharing):** Fetching data directly from `lentopallo-api.torneopal.net` using the URL inputs **will likely fail** in most browsers when the HTML file is hosted on a different domain (like GitHub Pages) or opened locally. This is due to browser security policies. The API server must explicitly allow requests from the app's origin.
+    * **Workaround:** Use a proxy server or manually download JSON data and modify the script to load locally (for personal use).
+* **Data Format Dependency:** Both apps are tightly coupled to the specific JSON structure returned by the `lentopallo-api.torneopal.net` API endpoints (`getMatch` and `getMatches`). They will likely fail if the API structure changes or if used with data from a different source.
+* **Data Completeness/Accuracy:** The accuracy of calculated stats depends entirely on the completeness and correctness of the source JSON data (e.g., presence of `playing_position`, `substitution_events`, valid `wall_time` for all events, correct scorer IDs in `piste` events). The "not working" examples highlighted issues with missing/inconsistent data.
+* **"Implied Errors":** The "Opponent Errors (Implied)" and "Implied Errors Made" stats are proxies based on points scored where the specific scoring player ID was missing. They are *not* a definitive count of actual errors.
+* **Libero Tracking:** Calculations involving substitutions or "Full Sets Played" may not be accurate for Liberos due to their unique substitution rules not being fully tracked/interpreted.
+
+## Hosting Notes
+
+* You can host either `volleyball-replay-app-v1.html` or `team-stats-app.html` (or both, perhaps renaming one to `index.html`) using static hosting providers like GitHub Pages, Netlify, Vercel etc.
+* Refer to the `github-pages-viewing` document for steps on setting up GitHub Pages.
+* Remember that hosting the file **does not solve the CORS issue** for data loading via URL.
