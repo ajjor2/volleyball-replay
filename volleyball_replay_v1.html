@@ -270,18 +270,15 @@
                 }
 
                 const data = await response.json();
-                if (!Array.isArray(data)) {
-                    // If the API wraps the array, e.g., { "matches": [] }, adjust here:
-                    // if (!data.matches || !Array.isArray(data.matches)) {
-                    //    throw new Error('Invalid data: Expected an array of matches.');
-                    // }
-                    // displayMatchList(data.matches); // Then pass data.matches
-                    throw new Error('Invalid data: Expected an array of matches.');
+                // Validate if data itself is an object and contains a 'matches' array
+                if (!data || !Array.isArray(data.matches)) {
+                    throw new Error('Invalid data: "matches" array not found in API response.');
                 }
                 
-                displayMatchList(data); // Placeholder for now
+                // Set success message before displaying, as displayMatchList might have its own status updates
                 loadStatusEl.textContent = 'Match list loaded. Select a match to replay.';
                 loadStatusEl.className = 'mt-2 text-sm status-success';
+                displayMatchList(data.matches); // Pass the nested matches array
 
             } catch (error) {
                 console.error('Error loading team matches:', error);
