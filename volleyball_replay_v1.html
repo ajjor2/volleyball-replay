@@ -71,24 +71,29 @@
 
         <h1 class="text-2xl font-bold text-center mb-4 text-gray-800">Volleyball Game Replay</h1>
 
-        <div class="mb-4 p-4 border border-gray-300 rounded-md bg-gray-50">
-            <label for="game-url" class="block text-sm font-medium text-gray-700 mb-1">Game Data URL:</label>
+        <div id="getMatches-input-container" class="mb-4 p-4 border border-gray-300 rounded-md bg-gray-50">
+            <label for="getMatches-url-input" class="block text-sm font-medium text-gray-700 mb-1">Team Matches API URL:</label>
             <div class="flex space-x-2">
-                <input type="text" id="game-url" class="flex-grow p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="Paste game data URL here (e.g., https://lentopallo-api.torneopal.net/...)">
-                <button id="load-data-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-md transition duration-150 ease-in-out">
-                    Load Game
+                <input type="text" id="getMatches-url-input" class="flex-grow p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="e.g., https://lentopallo-api.torneopal.net/taso/rest/getMatches?team_id=...">
+                <button id="load-matches-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-md transition duration-150 ease-in-out">
+                    Load Matches
                 </button>
             </div>
-            <div id="load-status" class="mt-2 text-sm h-5"></div> </div>
+            <div id="load-status" class="mt-2 text-sm h-5"></div>
+        </div>
 
-        <div id="scoreboard" class="text-center text-xl font-semibold mb-2 p-3 bg-gray-200 rounded-md text-gray-700 opacity-50">
+        <div id="match-list-area" class="mt-4 p-4 border border-gray-300 rounded-md bg-gray-50 hidden">
+            <!-- Match list will be populated here by JavaScript -->
+        </div>
+
+        <div id="scoreboard" class="text-center text-xl font-semibold mb-2 p-3 bg-gray-200 rounded-md text-gray-700 hidden">
             Set <span id="set-number">-</span> |
             <span id="team-a-name">Team A</span> <span id="team-a-points">0</span> -
             <span id="team-b-points">0</span> <span id="team-b-name">Team B</span> |
             Sets: <span id="team-a-sets">0</span> - <span id="team-b-sets">0</span>
         </div>
 
-        <div id="match-info" class="text-xs text-center text-gray-600 mb-4 border-t border-b py-1 opacity-50">
+        <div id="match-info" class="text-xs text-center text-gray-600 mb-4 border-t border-b py-1 hidden">
             <span id="match-date">Date</span> @ <span id="match-time">Time</span> |
             Venue: <span id="match-venue">Venue</span> |
             Referee: <span id="match-referee">Referee</span> |
@@ -97,7 +102,7 @@
         </div>
 
 
-        <div class="flex items-stretch justify-center mb-4 opacity-50" id="court-area">
+        <div class="flex items-stretch justify-center mb-4 hidden" id="court-area">
             <div id="court-side-a" class="court-side w-1/2 grid grid-cols-2 grid-rows-3">
                 <div id="zone-a-5" class="court-zone"></div> <div id="zone-a-4" class="court-zone"></div>
                 <div id="zone-a-6" class="court-zone"></div> <div id="zone-a-3" class="court-zone"></div>
@@ -111,11 +116,11 @@
             </div>
         </div>
 
-        <div id="event-description" class="text-center text-lg italic text-gray-600 mb-4 h-6">
-            Load game data using the URL field above.
+        <div id="event-description" class="text-center text-lg italic text-gray-600 mb-4 h-6 hidden">
+            Enter a team matches API URL above to get started.
         </div>
 
-        <div class="text-center mb-6 space-x-2">
+        <div id="playback-controls-area" class="text-center mb-6 space-x-2 hidden">
             <button id="prev-event" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg transition duration-150 ease-in-out" disabled>
                 Previous Event
             </button>
@@ -130,7 +135,7 @@
             </button>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 opacity-50" id="stats-area">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 hidden" id="stats-area">
             <div>
                 <h3 id="stats-team-a-name" class="text-lg font-semibold mb-2 text-center">Team A Stats</h3>
                 <table id="stats-team-a">
@@ -163,9 +168,11 @@
         const playbackSpeed = 1500;
 
         // --- DOM Elements Globals ---
-        const gameUrlInput = document.getElementById('game-url');
-        const loadDataBtn = document.getElementById('load-data-btn');
+        const gameUrlInput = document.getElementById('getMatches-url-input'); // Renamed
+        const loadDataBtn = document.getElementById('load-matches-btn'); // Renamed
+        const getMatchesInputContainerEl = document.getElementById('getMatches-input-container'); // Added
         const loadStatusEl = document.getElementById('load-status');
+        const matchListAreaEl = document.getElementById('match-list-area'); // Added
         const scoreboardEl = document.getElementById('scoreboard');
         const matchInfoEl = document.getElementById('match-info');
         const matchDateEl = document.getElementById('match-date');
@@ -176,6 +183,7 @@
         const setElapsedTimeEl = document.getElementById('set-elapsed-time');
         const courtAreaEl = document.getElementById('court-area');
         const statsAreaEl = document.getElementById('stats-area');
+        const playbackControlsAreaEl = document.getElementById('playback-controls-area'); // Added
         const setNumberEl = document.getElementById('set-number');
         const teamANameEl = document.getElementById('team-a-name');
         const teamAPointsEl = document.getElementById('team-a-points');
@@ -211,8 +219,7 @@
         let playerPositionsA = {};
         let playerPositionsB = {};
         let playerStats = {}; // Holds running stats: { playerId: { name: '', shirt: '', team: '', points: 0, serves: 0, isCaptain: false }, ... }
-        // let finalPlayerPoints = {}; // REMOVED - No longer storing final points separately
-        let captainIds = []; // REMOVED - Captain status stored in playerStats
+        let captainIds = []; 
         let teamATimeouts = 0;
         let teamBTimeouts = 0;
         let teamASubs = 0;
@@ -234,33 +241,247 @@
         /** Formats total seconds into MM:SS format. */
         function formatSecondsToMMSS(totalSeconds) { if (totalSeconds === null || totalSeconds < 0 || isNaN(totalSeconds)) { return "--:--"; } const minutes = Math.floor(totalSeconds / 60); const seconds = Math.floor(totalSeconds % 60); const paddedMinutes = String(minutes).padStart(2, '0'); const paddedSeconds = String(seconds).padStart(2, '0'); return `${paddedMinutes}:${paddedSeconds}`; }
 
+        // --- Fetch Team Matches Function ---
+        /** Fetches, validates, and displays a list of team matches from a given URL. */
+        async function fetchTeamMatches(teamMatchesURL) {
+            loadStatusEl.textContent = 'Loading match list...';
+            loadStatusEl.className = 'mt-2 text-sm status-loading';
+            loadDataBtn.disabled = true; // Assumes loadDataBtn is the correct variable for "load-matches-btn"
+
+            try {
+                let parsedUrl;
+                try {
+                    parsedUrl = new URL(teamMatchesURL);
+                } catch (_) {
+                    throw new Error('Invalid Team Matches API URL format. Please check the URL and try again.');
+                }
+
+                if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+                    throw new Error('URL must use http or https.');
+                }
+                // Optional: Hostname check if needed
+                // if (ALLOWED_HOSTNAME && parsedUrl.hostname !== ALLOWED_HOSTNAME) {
+                //    throw new Error(`Data can only be loaded from ${ALLOWED_HOSTNAME}`);
+                // }
+
+                const response = await fetch(teamMatchesURL);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                if (!Array.isArray(data)) {
+                    // If the API wraps the array, e.g., { "matches": [] }, adjust here:
+                    // if (!data.matches || !Array.isArray(data.matches)) {
+                    //    throw new Error('Invalid data: Expected an array of matches.');
+                    // }
+                    // displayMatchList(data.matches); // Then pass data.matches
+                    throw new Error('Invalid data: Expected an array of matches.');
+                }
+                
+                displayMatchList(data); // Placeholder for now
+                loadStatusEl.textContent = 'Match list loaded. Select a match to replay.';
+                loadStatusEl.className = 'mt-2 text-sm status-success';
+
+            } catch (error) {
+                console.error('Error loading team matches:', error);
+                loadStatusEl.textContent = `Error: ${error.message}`;
+                loadStatusEl.className = 'mt-2 text-sm status-error';
+                // Optionally, clear or hide match list area if it was partially populated or visible
+                // matchListAreaEl.innerHTML = '';
+                // matchListAreaEl.classList.add('hidden');
+            } finally {
+                loadDataBtn.disabled = false;
+            }
+        }
+
+        // --- Display Match List Function ---
+        /** Displays a list of matches in the UI, making "Played" matches selectable. */
+        function displayMatchList(matches) {
+            matchListAreaEl.innerHTML = ''; // Clear previous content
+
+            const playableMatches = matches.filter(match => match.status === 'Played');
+
+            if (!matches || matches.length === 0) {
+                matchListAreaEl.innerHTML = '<p class="text-gray-500">No matches found for this team.</p>';
+                loadStatusEl.textContent = 'No matches listed.';
+                loadStatusEl.className = 'mt-2 text-sm';
+                matchListAreaEl.classList.remove('hidden');
+                return;
+            }
+
+            const fragment = document.createDocumentFragment();
+
+            matches.forEach(match => {
+                const { match_id, date, home_team_name, away_team_name, status } = match;
+                const matchItemDiv = document.createElement('div');
+                matchItemDiv.className = 'p-3 mb-2 border rounded-md bg-white shadow-sm';
+
+                const dateEl = document.createElement('p');
+                dateEl.className = 'text-sm text-gray-600';
+                dateEl.textContent = new Date(date).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }) + 
+                                     (match.time ? ` @ ${match.time.substring(0,5)}` : '');
+
+
+                const teamsEl = document.createElement('h4');
+                teamsEl.className = 'font-semibold text-gray-800';
+                teamsEl.textContent = `${home_team_name} vs ${away_team_name}`;
+                
+                const statusEl = document.createElement('p');
+                statusEl.className = 'text-sm';
+                statusEl.textContent = `Status: ${status}`;
+
+                if (status === 'Played') {
+                    statusEl.classList.add('text-green-600', 'font-medium');
+                    matchItemDiv.classList.add('hover:bg-indigo-50', 'cursor-pointer');
+                    matchItemDiv.dataset.matchId = match_id;
+                    matchItemDiv.addEventListener('click', () => handleMatchSelection(match_id, home_team_name, away_team_name)); // Pass names for potential use in handleMatchSelection
+                } else {
+                    statusEl.classList.add('text-orange-600');
+                    matchItemDiv.classList.add('opacity-60');
+                }
+
+                matchItemDiv.appendChild(dateEl);
+                matchItemDiv.appendChild(teamsEl);
+                matchItemDiv.appendChild(statusEl);
+                fragment.appendChild(matchItemDiv);
+            });
+
+            matchListAreaEl.appendChild(fragment);
+            matchListAreaEl.classList.remove('hidden');
+
+            if (playableMatches.length > 0) {
+                // This message is already set by fetchTeamMatches on success, so only override if no playable matches.
+                // loadStatusEl.textContent = 'Select a played match from the list.';
+                // loadStatusEl.className = 'mt-2 text-sm status-success';
+            } else if (playableMatches.length === 0 && matches.length > 0) {
+                loadStatusEl.textContent = 'No matches are currently available for replay.';
+                loadStatusEl.className = 'mt-2 text-sm'; // Default text color
+            }
+        }
+
+        // --- Handle Match Selection Function ---
+        /** Handles the selection of a match from the list to load its detailed data for replay. */
+        function handleMatchSelection(match_id, home_team_name, away_team_name) {
+            if (!match_id) {
+                console.error("Match ID is undefined. Cannot load match.");
+                loadStatusEl.textContent = 'Error: Invalid match selected.';
+                loadStatusEl.className = 'mt-2 text-sm status-error';
+                return;
+            }
+
+            // Hide match list and the initial URL input area
+            matchListAreaEl.classList.add('hidden');
+            if (getMatchesInputContainerEl) { // Check if the element exists
+                getMatchesInputContainerEl.classList.add('hidden');
+            }
+
+            // Update status message
+            loadStatusEl.textContent = 'Loading selected game...';
+            loadStatusEl.className = 'mt-2 text-sm status-loading';
+
+            // Optional: Pre-populate team names for faster UI feedback (will be overwritten by initializeGame with official data)
+            if (home_team_name && away_team_name) {
+                teamANameEl.textContent = home_team_name;
+                teamBNameEl.textContent = away_team_name;
+                // Also update stats table headers if needed
+                statsTeamANameEl.textContent = `${home_team_name} Stats`;
+                statsTeamBNameEl.textContent = `${away_team_name} Stats`;
+            }
+
+
+            // Construct the getMatch URL
+            const getMatchURL = `https://lentopallo-api.torneopal.net/taso/rest/getMatch?match_id=${match_id}`;
+            
+            // Call loadGameData with the new URL
+            loadGameData(getMatchURL);
+        }
 
         // --- Load Data Function ---
         /** Fetches, validates, and initializes game data from a given URL. */
         async function loadGameData(url) {
-            loadStatusEl.textContent = 'Loading...'; loadStatusEl.className = 'mt-2 text-sm status-loading'; loadDataBtn.disabled = true; resetUIState();
+            loadStatusEl.textContent = 'Loading game data...'; loadStatusEl.className = 'mt-2 text-sm status-loading'; loadDataBtn.disabled = true; 
+            // Do not call resetUIState() here, as it would hide the match list if it was visible
             try {
-                let parsedUrl; try { parsedUrl = new URL(url); } catch (_) { throw new Error('Invalid URL format.'); }
+                let parsedUrl; try { parsedUrl = new URL(url); } catch (_) { throw new Error('Invalid Game Data URL format. Please check the URL and try again.'); }
                 if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') { throw new Error('URL must use http or https.'); }
-                // if (ALLOWED_HOSTNAME && parsedUrl.hostname !== ALLOWED_HOSTNAME) { throw new Error(`Data can only be loaded from ${ALLOWED_HOSTNAME}`); }
                 const response = await fetch(url); if (!response.ok) { throw new Error(`HTTP error! Status: ${response.status}`); } const data = await response.json();
-                if (!data?.match?.events || !Array.isArray(data.match.events)) { throw new Error('Invalid data: Missing "match.events" array.'); } if (!data?.match?.lineups || !Array.isArray(data.match.lineups)) { throw new Error('Invalid data: Missing "match.lineups" array.'); } if (!data?.match?.team_A_id || !data?.match?.team_B_id) { throw new Error('Invalid data: Missing team IDs.'); }
+                if (!data?.match?.events || !Array.isArray(data.match.events)) { throw new Error('Invalid game data: Missing "match.events" array.'); } if (!data?.match?.lineups || !Array.isArray(data.match.lineups)) { throw new Error('Invalid game data: Missing "match.lineups" array.'); } if (!data?.match?.team_A_id || !data?.match?.team_B_id) { throw new Error('Invalid game data: Missing team IDs.'); }
                 console.log("Data fetched and validated successfully"); loadedGameData = data; loadStatusEl.textContent = 'Game data loaded successfully!'; loadStatusEl.className = 'mt-2 text-sm status-success'; initializeGame();
-            } catch (error) { console.error('Error loading game data:', error); loadStatusEl.textContent = `Error: ${error.message}`; loadStatusEl.className = 'mt-2 text-sm status-error'; loadedGameData = null; resetUIState(); } finally { loadDataBtn.disabled = false; }
+            } catch (error) { 
+                console.error('Error loading game data:', error); 
+                loadStatusEl.textContent = `Error loading game data: ${error.message}`; 
+                loadStatusEl.className = 'mt-2 text-sm status-error'; 
+                loadedGameData = null; 
+                // If game load fails, we might want to re-show match list or input container
+                // Consider calling a soft reset or enabling the getMatchesInputContainerEl again
+                if (getMatchesInputContainerEl) {
+                    getMatchesInputContainerEl.classList.remove('hidden');
+                }
+                // matchListAreaEl.classList.remove('hidden'); // Or show match list again
+            } finally { loadDataBtn.disabled = false; }
         }
 
         // --- Reset UI Function ---
         /** Resets the UI elements to their initial (pre-load) state and disables controls. */
         function resetUIState() {
             pausePlayback();
-            scoreboardEl.classList.add('opacity-50'); matchInfoEl.classList.add('opacity-50'); courtAreaEl.classList.add('opacity-50'); statsAreaEl.classList.add('opacity-50');
+            // Hide elements that should only be visible when a game is loaded/replayed
+            scoreboardEl.classList.add('hidden');
+            matchInfoEl.classList.add('hidden');
+            courtAreaEl.classList.add('hidden');
+            statsAreaEl.classList.add('hidden');
+            playbackControlsAreaEl.classList.add('hidden'); // Hide playback controls
+            eventDescEl.classList.add('hidden'); // Hide event description
+
+            matchListAreaEl.classList.add('hidden'); // Hide match list area initially
+            matchListAreaEl.innerHTML = ''; // Clear any previous match list
+
             prevEventBtn.disabled = true; playPauseBtn.disabled = true; playPauseBtn.textContent = 'Play'; nextEventBtn.disabled = true; skipToEndBtn.disabled = true;
-            eventDescEl.textContent = 'Load game data using the URL field above.';
+            
+            // Set initial text for event description, but it remains hidden
+            eventDescEl.textContent = 'Enter a team matches API URL above to get started.';
+
+            // Clear the input field
+            gameUrlInput.value = '';
+
+            // Reset scoreboard text content
             setNumberEl.textContent = '-'; teamANameEl.textContent = 'Team A'; teamAPointsEl.textContent = '0'; teamASetsEl.textContent = '0'; teamBNameEl.textContent = 'Team B'; teamBPointsEl.textContent = '0'; teamBSetsEl.textContent = '0';
             matchDateEl.textContent = 'Date'; matchTimeEl.textContent = 'Time'; matchVenueEl.textContent = 'Venue'; matchRefereeEl.textContent = 'Referee'; matchAttendanceEl.textContent = '0'; setElapsedTimeEl.textContent = '--:--';
             statsTeamANameEl.textContent = `Team A Stats`; statsTeamBNameEl.textContent = `Team B Stats`;
             statsTeamATbody.innerHTML = ''; statsTeamATfoot.innerHTML = ''; statsTeamBTbody.innerHTML = ''; statsTeamBTfoot.innerHTML = '';
             document.querySelectorAll('.player-marker').forEach(marker => marker.remove());
+
+            // Reset core game state variables
+            loadedGameData = null;
+            currentEventIndex = -1;
+            currentSet = 0;
+            teamAPoints = 0;
+            teamBPoints = 0;
+            teamASets = 0;
+            teamBSets = 0;
+            servingTeam = null;
+            lastServingTeam = null;
+            playerPositionsA = {};
+            playerPositionsB = {};
+            playerStats = {};
+            gameHistory = [];
+            teamAImpliedOpponentErrors = 0;
+            teamBImpliedOpponentErrors = 0;
+            currentSetStartTime = null;
+            teamAId = null;
+            teamBId = null;
+            // teamATimeouts, teamBTimeouts, teamASubs, teamBSubs are more static for the whole match, 
+            // they get recalculated in initializeGame if a new match is loaded.
+            // If we want full reset of these too, they can be added here.
+
+            // Ensure load status is visible and input is enabled/container visible
+            loadStatusEl.textContent = ''; // Clear previous status
+            gameUrlInput.disabled = false; 
+            loadDataBtn.disabled = false; 
+            if (getMatchesInputContainerEl && getMatchesInputContainerEl.classList.contains('hidden')) {
+                 getMatchesInputContainerEl.classList.remove('hidden'); // Show if hidden
+            }
         }
 
 
@@ -268,10 +489,34 @@
         /** Initializes the game state and UI using the globally stored `loadedGameData`. */
         function initializeGame() {
             console.log("Initializing game with loaded data...");
-            if (!loadedGameData?.match) { console.error("Cannot initialize: No valid game data."); resetUIState(); return; }
+            if (!loadedGameData?.match) { console.error("Cannot initialize: No valid game data."); 
+                // Do not call full resetUIState here if a match list was shown, as it would hide it.
+                // Instead, ensure game-specific elements are hidden if initialization fails mid-way
+                scoreboardEl.classList.add('hidden');
+                matchInfoEl.classList.add('hidden');
+                courtAreaEl.classList.add('hidden');
+                statsAreaEl.classList.add('hidden');
+                playbackControlsAreaEl.classList.add('hidden');
+                eventDescEl.classList.add('hidden');
+                return; 
+            }
             pausePlayback();
             const matchData = loadedGameData.match;
             teamAId = matchData.team_A_id; teamBId = matchData.team_B_id;
+            
+            // Show game-specific UI elements now that a game is loaded
+            scoreboardEl.classList.remove('hidden');
+            matchInfoEl.classList.remove('hidden');
+            courtAreaEl.classList.remove('hidden');
+            statsAreaEl.classList.remove('hidden');
+            playbackControlsAreaEl.classList.remove('hidden');
+            eventDescEl.classList.remove('hidden'); // Show event description area
+            
+            // Hide elements related to match listing/selection
+            matchListAreaEl.classList.add('hidden'); 
+            if (getMatchesInputContainerEl) {
+                getMatchesInputContainerEl.classList.add('hidden');
+            }
 
             // Set Match Info Display
             teamANameEl.textContent = matchData.team_A_name || 'Team A'; statsTeamANameEl.textContent = `${matchData.team_A_name || 'Team A'} Stats`; teamBNameEl.textContent = matchData.team_B_name || 'Team B'; statsTeamBNameEl.textContent = `${matchData.team_B_name || 'Team B'} Stats`;
@@ -289,7 +534,6 @@
                 const playerIdStr = String(p.player_id);
                 if (playerIdStr && p.team_id && p.player_name && p.shirt_number !== undefined) {
                     playerStats[playerIdStr] = { name: p.player_name, shirt: p.shirt_number, team: p.team_id === teamAId ? 'A' : 'B', points: 0, serves: 0, isCaptain: p.captain === 'C' };
-                    // finalPlayerPoints removed
                 } else { console.warn("Skipping invalid lineup entry:", p); }
             });
 
@@ -301,18 +545,15 @@
             currentEventIndex = -1; currentSet = 0; teamAPoints = 0; teamBPoints = 0; teamASets = 0; teamBSets = 0; servingTeam = null; lastServingTeam = null; playerPositionsA = {}; playerPositionsB = {}; teamAImpliedOpponentErrors = 0; teamBImpliedOpponentErrors = 0; currentSetStartTime = null; gameHistory = [];
 
             // Update UI
-            scoreboardEl.classList.remove('opacity-50'); matchInfoEl.classList.remove('opacity-50'); courtAreaEl.classList.remove('opacity-50'); statsAreaEl.classList.remove('opacity-50');
             displayEvent(0); saveState(); updateStatsTable(); updateSetElapsedTimeUI(null);
             console.log("Initialization complete.");
         }
 
         // --- Playback Control ---
-        // ... (playPlayback and pausePlayback functions remain the same) ...
          function playPlayback() { if (!loadedGameData || isPlaying || currentEventIndex >= sortedEvents.length - 1) return; isPlaying = true; playPauseBtn.textContent = 'Pause'; playPauseBtn.classList.remove('bg-green-500', 'hover:bg-green-600'); playPauseBtn.classList.add('bg-yellow-500', 'hover:bg-yellow-600'); prevEventBtn.disabled = true; nextEventBtn.disabled = true; skipToEndBtn.disabled = true; const advanceStep = () => { if (currentEventIndex < sortedEvents.length - 1) { displayEvent(currentEventIndex + 1, false); const currentEventCode = sortedEvents[currentEventIndex]?.code; if (currentEventCode === 'lopetaottelu') { pausePlayback(); } } else { pausePlayback(); } }; advanceStep(); if (isPlaying) { playIntervalId = setInterval(advanceStep, playbackSpeed); } }
         function pausePlayback() { if (!isPlaying && !playIntervalId) return; isPlaying = false; if (playIntervalId) { clearInterval(playIntervalId); playIntervalId = null; } playPauseBtn.textContent = 'Play'; playPauseBtn.classList.remove('bg-yellow-500', 'hover:bg-yellow-600'); playPauseBtn.classList.add('bg-green-500', 'hover:bg-green-600'); if(loadedGameData) { const isEnd = currentEventIndex >= sortedEvents.length - 1 || sortedEvents[currentEventIndex]?.code === 'lopetaottelu'; prevEventBtn.disabled = currentEventIndex <= 0; nextEventBtn.disabled = isEnd; playPauseBtn.disabled = isEnd; skipToEndBtn.disabled = isEnd; } else { prevEventBtn.disabled = true; nextEventBtn.disabled = true; playPauseBtn.disabled = true; skipToEndBtn.disabled = true; } }
 
         // --- State Management for Previous Button ---
-        // ... (saveState and restoreState functions updated to remove finalPlayerPoints) ...
          function saveState() {
              if (!loadedGameData) return; const state = { index: currentEventIndex, set: currentSet, pointsA: teamAPoints, pointsB: teamBPoints, setsA: teamASets, setsB: teamBSets, serving: servingTeam, lastServing: lastServingTeam, posA: JSON.parse(JSON.stringify(playerPositionsA)), posB: JSON.parse(JSON.stringify(playerPositionsB)), stats: JSON.parse(JSON.stringify(playerStats)), errorsA: teamAImpliedOpponentErrors, errorsB: teamBImpliedOpponentErrors, setStartTime: currentSetStartTime }; if (gameHistory.length === 0 || gameHistory[gameHistory.length - 1].index !== state.index) { gameHistory.push(state); }
         }
@@ -322,33 +563,26 @@
 
 
         // --- Rotation Logic ---
-        // ... (rotateTeam remains the same) ...
         function rotateTeam(teamId) { const currentPositions = teamId === 'A' ? playerPositionsA : playerPositionsB; const newPositions = {}; newPositions[1] = currentPositions[2]; newPositions[6] = currentPositions[1]; newPositions[5] = currentPositions[6]; newPositions[4] = currentPositions[5]; newPositions[3] = currentPositions[4]; newPositions[2] = currentPositions[3]; for (let zone = 1; zone <= 6; zone++) { if (teamId === 'A') playerPositionsA[zone] = newPositions[zone] || null; else playerPositionsB[zone] = newPositions[zone] || null; } }
 
         // --- Set Starting Lineup ---
-        // ... (setStartingLineup remains the same) ...
         function setStartingLineup(setNumber) { playerPositionsA = {}; playerPositionsB = {}; if (!loadedGameData?.match?.lineups) return; loadedGameData.match.lineups.forEach(p => { const playerIdStr = String(p.player_id); if (p.playing_position?.[setNumber]) { const zone = p.playing_position[setNumber]; if (zone >= 1 && zone <= 6) { if (p.team_id === teamAId) playerPositionsA[zone] = playerIdStr; else playerPositionsB[zone] = playerIdStr; } } }); }
 
         // --- Update UI Functions ---
-        /** Updates the scoreboard display. */
         function updateScoreboard() { setNumberEl.textContent = currentSet > 0 ? currentSet : '-'; teamAPointsEl.textContent = teamAPoints; teamBPointsEl.textContent = teamBPoints; teamASetsEl.textContent = teamASets; teamBSetsEl.textContent = teamBSets; }
 
-        /** Redraws the player markers on the court. */
         function drawCourt() { document.querySelectorAll('.player-marker').forEach(marker => marker.remove()); const drawMarkers = (positions, teamClass) => { for (const zone in positions) { const playerId = positions[zone]; if (playerId && playerStats[playerId]) { const zoneEl = document.getElementById(`zone-${teamClass}-${zone}`); if (zoneEl) { const marker = document.createElement('div'); marker.classList.add('player-marker'); marker.classList.add(teamClass === 'a' ? 'team-a' : 'team-b'); marker.dataset.playerId = playerId; marker.textContent = playerStats[playerId].shirt; marker.title = playerStats[playerId].name; if ((servingTeam === 'A' && teamClass === 'a' && parseInt(zone) === 1) || (servingTeam === 'B' && teamClass === 'b' && parseInt(zone) === 1)) { marker.classList.add('serving'); } zoneEl.appendChild(marker); } } } }; drawMarkers(playerPositionsA, 'a'); drawMarkers(playerPositionsB, 'b'); }
 
-        /** Updates the player statistics tables, including summary rows. */
          function updateStatsTable() {
             statsTeamATbody.innerHTML = ''; statsTeamATfoot.innerHTML = '';
             statsTeamBTbody.innerHTML = ''; statsTeamBTfoot.innerHTML = '';
 
-            // Populate player rows
             Object.entries(playerStats)
                   .filter(([, stats]) => stats.shirt)
                   .sort(([,a],[,b]) => parseInt(a.shirt) - parseInt(b.shirt))
                   .forEach(([playerId, stats]) => {
                     const row = document.createElement('tr');
-                    const captainMark = stats.isCaptain ? ' (C)' : ''; // Add captain mark
-                    // Display running points and serves, removed final points column
+                    const captainMark = stats.isCaptain ? ' (C)' : ''; 
                     row.innerHTML = `
                         <td>${stats.shirt}</td>
                         <td>${stats.name}${captainMark}</td>
@@ -359,7 +593,6 @@
                     else statsTeamBTbody.appendChild(row);
             });
 
-            // Add Summary Rows to Footer (Adjust colspan)
             const errorRowA = document.createElement('tr'); errorRowA.classList.add('summary-row');
             errorRowA.innerHTML = `<td colspan="2">Opponent Errors (Implied)</td><td>${teamAImpliedOpponentErrors}</td><td>-</td>`; statsTeamATfoot.appendChild(errorRowA);
             const subsRowA = document.createElement('tr'); subsRowA.classList.add('summary-row');
@@ -375,17 +608,14 @@
             timeoutRowB.innerHTML = `<td colspan="2">Timeouts Used</td><td>${teamBTimeouts}</td><td>-</td>`; statsTeamBTfoot.appendChild(timeoutRowB);
         }
 
-        /** Updates the set elapsed time display. */
         function updateSetElapsedTimeUI(currentEventTimeStr) { if (currentSetStartTime && currentEventTimeStr) { const startSeconds = parseTimeToSeconds(currentSetStartTime); const currentSeconds = parseTimeToSeconds(currentEventTimeStr); if (startSeconds !== null && currentSeconds !== null && currentSeconds >= startSeconds) { const elapsedSeconds = currentSeconds - startSeconds; setElapsedTimeEl.textContent = formatSecondsToMMSS(elapsedSeconds); } else { setElapsedTimeEl.textContent = "--:--"; } } else { setElapsedTimeEl.textContent = "00:00"; } }
 
         // --- Highlight Functions ---
-        // ... (highlightPointScorer and highlightLostPointSide functions remain the same) ...
          function highlightPointScorer(playerId) { if (pointScorerHighlightTimeout) clearTimeout(pointScorerHighlightTimeout); document.querySelectorAll('.player-marker.point-scorer').forEach(el => el.classList.remove('point-scorer')); if (!playerId || !playerStats[playerId]) return; const scorerMarker = document.querySelector(`.player-marker[data-player-id="${playerId}"]`); if (scorerMarker) { scorerMarker.classList.add('point-scorer'); pointScorerHighlightTimeout = setTimeout(() => { scorerMarker.classList.remove('point-scorer'); pointScorerHighlightTimeout = null; }, 1500); } }
         function highlightLostPointSide(losingTeamId) { if (lostPointHighlightTimeout) clearTimeout(lostPointHighlightTimeout); courtSideAEl.classList.remove('lost-point-highlight'); courtSideBEl.classList.remove('lost-point-highlight'); const targetSideEl = losingTeamId === 'A' ? courtSideAEl : courtSideBEl; if (targetSideEl) { targetSideEl.classList.add('lost-point-highlight'); lostPointHighlightTimeout = setTimeout(() => { targetSideEl.classList.remove('lost-point-highlight'); lostPointHighlightTimeout = null; }, 800); } }
 
 
         // --- Process Single Event for State Update (No UI) ---
-        /** Updates the core game state variables based on a single event, without updating the UI. */
         function processEventForStateUpdate(event) {
              let needsRotation = null; let pointScoredBy = null; let scorerPlayerId = null;
              if (event.period && parseInt(event.period) > 0 && parseInt(event.period) !== currentSet) { if (event.code !== 'maali') { currentSet = parseInt(event.period); teamAPoints = 0; teamBPoints = 0; setStartingLineup(currentSet); currentSetStartTime = event.wall_time; } }
@@ -401,7 +631,6 @@
 
 
         // --- Main Event Display Function (Handles UI) ---
-        /** Processes a single event, updates the state (if not restoring), and updates the entire UI. */
         function displayEvent(index, isRestoring = false) {
              if (!loadedGameData || index < 0 || index >= sortedEvents.length) return;
             const event = sortedEvents[index]; console.log("Displaying Event:", index, event);
@@ -416,7 +645,26 @@
         }
 
         // --- Event Listeners ---
-        loadDataBtn.addEventListener('click', () => { const url = gameUrlInput.value.trim(); if (url) { loadGameData(url); } else { loadStatusEl.textContent = 'Please enter a URL.'; loadStatusEl.className = 'mt-2 text-sm status-error'; } });
+        // loadDataBtn.addEventListener('click', () => { const url = gameUrlInput.value.trim(); if (url) { loadGameData(url); } else { loadStatusEl.textContent = 'Please enter a URL.'; loadStatusEl.className = 'mt-2 text-sm status-error'; } });
+        // Modified event listener for the new button ID and function:
+        loadDataBtn.addEventListener('click', () => { 
+            const url = gameUrlInput.value.trim(); 
+            if (url) { 
+                // Before fetching matches, ensure game-specific UI is hidden
+                scoreboardEl.classList.add('hidden');
+                matchInfoEl.classList.add('hidden');
+                courtAreaEl.classList.add('hidden');
+                statsAreaEl.classList.add('hidden');
+                playbackControlsAreaEl.classList.add('hidden');
+                eventDescEl.classList.add('hidden');
+                loadedGameData = null; // Clear any previously loaded game data
+
+                fetchTeamMatches(url); 
+            } else { 
+                loadStatusEl.textContent = 'Please enter a Team Matches API URL.'; 
+                loadStatusEl.className = 'mt-2 text-sm status-error'; 
+            } 
+        });
         playPauseBtn.addEventListener('click', () => { if (isPlaying) { pausePlayback(); } else { playPlayback(); } });
         nextEventBtn.addEventListener('click', () => { pausePlayback(); if (loadedGameData && currentEventIndex < sortedEvents.length - 1) { displayEvent(currentEventIndex + 1, false); } });
         prevEventBtn.addEventListener('click', () => { pausePlayback(); if (loadedGameData && gameHistory.length > 0) { const prevState = gameHistory.pop(); if (prevState) { console.log("Restoring previous state:", prevState); restoreState(prevState); } } else if (loadedGameData && currentEventIndex > 0){ console.warn("History empty, re-initializing."); initializeGame(); } });
