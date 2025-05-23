@@ -20,20 +20,37 @@
             min-height: 80px;
         }
         .player-marker {
-            width: 30px;
-            height: 30px;
-            border-radius: 50%;
+            width: 40px; /* Increased width slightly */
+            height: 45px; /* Increased height for name */
+            border-radius: 8px; /* Slightly less round for more space */
             background-color: #3b82f6; /* blue-500 */
             color: white;
             display: flex;
+            flex-direction: column; /* Stack number and name vertically */
             justify-content: center;
             align-items: center;
-            font-size: 0.8rem;
             font-weight: bold;
             position: absolute;
             border: 1px solid white;
             transition: all 0.3s ease-in-out;
             z-index: 10;
+            padding-top: 2px; /* Small padding for number */
+            box-sizing: border-box; /* Ensure padding/border are within width/height */
+        }
+        .player-marker .shirt-number { /* New class for the number span */
+            font-size: 0.9rem; /* Existing font-size for number */
+            line-height: 1;
+        }
+        .player-marker .player-name-on-marker { /* New class for the name span */
+            font-size: 0.65rem; /* Smaller font for the name */
+            font-weight: normal;
+            line-height: 1;
+            margin-top: 2px;
+            text-align: center;
+            white-space: nowrap; /* Prevent name from wrapping if too long */
+            overflow: hidden;
+            text-overflow: ellipsis; /* Add ellipsis if name is still too long */
+            max-width: 38px; /* Ensure it doesn't overflow marker width */
         }
         .player-marker.team-b {
             background-color: #ef4444; /* red-500 */
@@ -81,6 +98,29 @@
         .match-list-item.not-played {
             border-left: 4px solid #f59e0b; /* amber-500 */
             opacity: 0.7;
+        }
+        /* Rally duration chart styles */
+        .rally-chart-visualization { /* Generic class for chart containers */
+            overflow-x: auto; /* Enable horizontal scrolling for the chart */
+            overflow-y: hidden;
+            padding-bottom: 10px; /* Space for scrollbar if it appears */
+            position: relative; /* For positioning Y-axis elements if needed */
+        }
+        .y-axis-label {
+            font-size: 10px;
+            fill: #4b5563; /* gray-600 */
+            text-anchor: end;
+        }
+        .y-axis-line {
+            stroke: #d1d5db; /* gray-300 */
+            stroke-width: 1;
+            stroke-dasharray: 2,2; /* Dashed line for grid */
+        }
+        /* Rally Stats Summary Table */
+        #rally-stats-summary-table th, #rally-stats-summary-table td,
+        #player-scored-rally-stats-table th, #player-scored-rally-stats-table td { /* Apply to both tables */
+            padding: 0.3rem 0.5rem;
+            font-size: 0.8rem;
         }
     </style>
 </head>
@@ -149,6 +189,34 @@
                 </div>
             </div>
 
+             <div id="all-rallies-duration-chart-area" class="mt-8 mb-2 opacity-50">
+                <h3 class="text-xl font-semibold mb-3 text-center text-gray-700">All Rallies: Durations (seconds)</h3>
+                <div id="all-rallies-duration-visualization" class="rally-chart-visualization p-4 border border-gray-300 rounded-md bg-gray-50 min-h-[280px]">
+                    <p class="text-center text-gray-500">Rally duration chart will appear here once a game is loaded.</p>
+                </div>
+            </div>
+
+            <div id="rally-stats-summary-area" class="mt-0 mb-2 opacity-50">
+                 <h4 class="text-lg font-semibold mb-2 text-center text-gray-600">All Rallies: Length Analysis</h4>
+                 <div id="rally-stats-summary-content" class="p-3 border border-gray-200 rounded-md bg-gray-50 text-sm">
+                     <p class="text-center text-gray-500">Rally statistics will appear here.</p>
+                 </div>
+            </div>
+
+            <div id="player-scored-rallies-duration-chart-area" class="mt-8 mb-2 opacity-50">
+                <h3 class="text-xl font-semibold mb-3 text-center text-gray-700">Player-Scored Rallies: Durations (seconds)</h3>
+                <div id="player-scored-rallies-duration-visualization" class="rally-chart-visualization p-4 border border-gray-300 rounded-md bg-gray-50 min-h-[280px]">
+                    <p class="text-center text-gray-500">Player-scored rally duration chart will appear here.</p>
+                </div>
+            </div>
+            
+            <div id="player-scored-rally-stats-summary-area" class="mt-0 mb-6 opacity-50"> <h4 class="text-lg font-semibold mb-2 text-center text-gray-600">Player-Scored Rallies: Length Analysis</h4>
+                 <div id="player-scored-rally-stats-summary-content" class="p-3 border border-gray-200 rounded-md bg-gray-50 text-sm">
+                     <p class="text-center text-gray-500">Statistics for rallies scored by a specific player will appear here.</p>
+                 </div>
+            </div>
+
+
             <div id="event-description" class="text-center text-lg italic text-gray-600 mb-4 h-6">
                 Load game data using the URL field above or select from a team's match list.
             </div>
@@ -198,22 +266,19 @@
         // --- APPLICATION LOGIC ---
 
         // --- Configuration ---
-        const API_BASE_URL = "https://lentopallo-api.torneopal.net/taso/rest/"; // Added for constructing getMatch URLs
-        const ALLOWED_HOSTNAME = "lentopallo-api.torneopal.net"; // Keep for validation if needed
+        const API_BASE_URL = "https://lentopallo-api.torneopal.net/taso/rest/";
+        const ALLOWED_HOSTNAME = "lentopallo-api.torneopal.net";
         const playbackSpeed = 1500;
 
         // --- DOM Elements Globals ---
-        // For Team Matches
         const teamMatchesUrlInput = document.getElementById('team-matches-url');
         const loadTeamMatchesBtn = document.getElementById('load-team-matches-btn');
         const teamLoadStatusEl = document.getElementById('team-load-status');
         const matchListDisplayAreaEl = document.getElementById('match-list-display-area');
-
-        // For Single Game Replay (existing)
         const gameUrlInput = document.getElementById('game-url');
         const loadDataBtn = document.getElementById('load-data-btn');
         const loadStatusEl = document.getElementById('load-status');
-        const replayUIContainerEl = document.getElementById('replay-ui-container'); // Wrapper for replay UI
+        const replayUIContainerEl = document.getElementById('replay-ui-container');
         const scoreboardEl = document.getElementById('scoreboard');
         const matchInfoEl = document.getElementById('match-info');
         const matchDateEl = document.getElementById('match-date');
@@ -223,6 +288,17 @@
         const matchAttendanceEl = document.getElementById('match-attendance');
         const setElapsedTimeEl = document.getElementById('set-elapsed-time');
         const courtAreaEl = document.getElementById('court-area');
+        
+        const allRalliesDurationChartAreaEl = document.getElementById('all-rallies-duration-chart-area'); // Renamed
+        const allRalliesDurationVisualizationEl = document.getElementById('all-rallies-duration-visualization'); // Renamed
+        const rallyStatsSummaryAreaEl = document.getElementById('rally-stats-summary-area');
+        const rallyStatsSummaryContentEl = document.getElementById('rally-stats-summary-content');
+        
+        const playerScoredRalliesDurationChartAreaEl = document.getElementById('player-scored-rallies-duration-chart-area'); // New
+        const playerScoredRalliesDurationVisualizationEl = document.getElementById('player-scored-rallies-duration-visualization'); // New
+        const playerScoredRallyStatsSummaryAreaEl = document.getElementById('player-scored-rally-stats-summary-area'); 
+        const playerScoredRallyStatsSummaryContentEl = document.getElementById('player-scored-rally-stats-summary-content'); 
+        
         const statsAreaEl = document.getElementById('stats-area');
         const setNumberEl = document.getElementById('set-number');
         const teamANameEl = document.getElementById('team-a-name');
@@ -250,286 +326,305 @@
         let currentEventIndex = -1;
         let sortedEvents = [];
         let currentSet = 0;
-        let teamAPoints = 0;
-        let teamBPoints = 0;
-        let teamASets = 0;
-        let teamBSets = 0;
-        let servingTeam = null;
-        let lastServingTeam = null;
-        let playerPositionsA = {};
-        let playerPositionsB = {};
+        let teamAPoints = 0, teamBPoints = 0, teamASets = 0, teamBSets = 0;
+        let servingTeam = null, lastServingTeam = null;
+        let playerPositionsA = {}, playerPositionsB = {};
         let playerStats = {};
-        let teamATimeouts = 0;
-        let teamBTimeouts = 0;
-        let teamASubs = 0;
-        let teamBSubs = 0;
-        let teamAImpliedOpponentErrors = 0;
-        let teamBImpliedOpponentErrors = 0;
-        let teamAId = null;
-        let teamBId = null;
+        let teamATimeouts = 0, teamBTimeouts = 0, teamASubs = 0, teamBSubs = 0;
+        let teamAImpliedOpponentErrors = 0, teamBImpliedOpponentErrors = 0;
+        let teamAId = null, teamBId = null;
         let currentSetStartTime = null;
-        let pointScorerHighlightTimeout = null;
-        let lostPointHighlightTimeout = null;
+        let pointScorerHighlightTimeout = null, lostPointHighlightTimeout = null;
         let gameHistory = [];
-        let isPlaying = false;
-        let playIntervalId = null;
+        let isPlaying = false, playIntervalId = null;
 
         // --- Helper Functions ---
         function parseTimeToSeconds(timeString) { if (!timeString || typeof timeString !== 'string') return null; const parts = timeString.split(':'); if (parts.length === 3) { const h = parseInt(parts[0], 10); const m = parseInt(parts[1], 10); const s = parseInt(parts[2], 10); if (!isNaN(h) && !isNaN(m) && !isNaN(s)) { return h * 3600 + m * 60 + s; } } return null; }
         function formatSecondsToMMSS(totalSeconds) { if (totalSeconds === null || totalSeconds < 0 || isNaN(totalSeconds)) { return "--:--"; } const minutes = Math.floor(totalSeconds / 60); const seconds = Math.floor(totalSeconds % 60); const paddedMinutes = String(minutes).padStart(2, '0'); const paddedSeconds = String(seconds).padStart(2, '0'); return `${paddedMinutes}:${paddedSeconds}`; }
+        function setStatusMessage(element, message, type = 'info') { element.textContent = message; let className = 'mt-2 text-sm h-5 '; if (type === 'loading') className += 'status-loading'; else if (type === 'error') className += 'status-error'; else if (type === 'success') className += 'status-success'; element.className = className; }
 
-        /** Sets status message and style for a given element */
-        function setStatusMessage(element, message, type = 'info') {
-            element.textContent = message;
-            let className = 'mt-2 text-sm h-5 '; // Base classes
-            if (type === 'loading') className += 'status-loading';
-            else if (type === 'error') className += 'status-error';
-            else if (type === 'success') className += 'status-success';
-            element.className = className;
+        // --- Statistical Helper Functions ---
+        function calculateMean(dataArray) { if (!dataArray || dataArray.length === 0) return 0; const sum = dataArray.reduce((acc, val) => acc + val, 0); return sum / dataArray.length; }
+        function calculateMedian(dataArray) { if (!dataArray || dataArray.length === 0) return 0; const sorted = [...dataArray].sort((a, b) => a - b); const mid = Math.floor(sorted.length / 2); return sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2; }
+        function calculateRange(dataArray) { if (!dataArray || dataArray.length === 0) return { min: 0, max: 0 }; return { min: Math.min(...dataArray), max: Math.max(...dataArray) }; }
+        function calculateStandardDeviation(dataArray) { if (!dataArray || dataArray.length === 0) return 0; const mean = calculateMean(dataArray); const variance = dataArray.reduce((acc, val) => acc + Math.pow(val - mean, 2), 0) / dataArray.length; return Math.sqrt(variance); }
+
+        // --- Rally Duration Calculation ---
+        function calculateRallyDurations(gameSortedEvents) {
+            const rallyDurations = [];
+            let lastRallyStartTimeSeconds = null;
+            let currentSetNumberForRally = 0;
+            let rallyInSetCounter = 0;
+            let setScoreA = 0;
+            let setScoreB = 0;
+            for (const event of gameSortedEvents) {
+                const eventTimeSeconds = parseTimeToSeconds(event.wall_time);
+                if (eventTimeSeconds === null) continue;
+                if (event.code === 'aloitajakso') {
+                    currentSetNumberForRally = parseInt(event.period);
+                    rallyInSetCounter = 0; setScoreA = 0; setScoreB = 0;
+                    lastRallyStartTimeSeconds = eventTimeSeconds;
+                    const servingTeamEventForSet = gameSortedEvents.find(e => parseInt(e.period) === currentSetNumberForRally && e.code === 'aloittavajoukkue' && parseTimeToSeconds(e.wall_time) >= eventTimeSeconds);
+                    if (servingTeamEventForSet) { const servingTime = parseTimeToSeconds(servingTeamEventForSet.wall_time); if (servingTime !== null) lastRallyStartTimeSeconds = servingTime; }
+                } else if (event.code === 'aloittavajoukkue' && currentSetNumberForRally > 0 && rallyInSetCounter === 0) {
+                     const aloittavaTimeSeconds = parseTimeToSeconds(event.wall_time);
+                     if (aloittavaTimeSeconds && (!lastRallyStartTimeSeconds || aloittavaTimeSeconds >= lastRallyStartTimeSeconds)) { lastRallyStartTimeSeconds = aloittavaTimeSeconds; }
+                } else if (event.code === 'piste' && currentSetNumberForRally > 0) {
+                    if (lastRallyStartTimeSeconds !== null && eventTimeSeconds > lastRallyStartTimeSeconds) {
+                        const duration = eventTimeSeconds - lastRallyStartTimeSeconds;
+                        rallyInSetCounter++;
+                        let scoringTeamSymbol = null;
+                        const scoreMatch = event.description?.match(/(\d+)-(\d+)/);
+                        if (scoreMatch) { const newScoreA = parseInt(scoreMatch[1]); const newScoreB = parseInt(scoreMatch[2]); if (newScoreA > setScoreA) scoringTeamSymbol = 'A'; else if (newScoreB > setScoreB) scoringTeamSymbol = 'B'; setScoreA = newScoreA; setScoreB = newScoreB; }
+                        let rallyScorerPlayerId = null;
+                        if (event.player_id && String(event.player_id) !== '1') { rallyScorerPlayerId = String(event.player_id); }
+                        rallyDurations.push({ rallyOverallNumber: rallyDurations.length + 1, rallyInSetNumber: rallyInSetCounter, setNumber: currentSetNumberForRally, durationSeconds: duration, startTimeWallTime: lastRallyStartTimeSeconds ? formatSecondsToMMSS(lastRallyStartTimeSeconds % (24*3600)).replace(/^00:/, '') : "N/A", endTimeWallTime: event.wall_time, scoringTeam: scoringTeamSymbol, scorerPlayerId: rallyScorerPlayerId });
+                    }
+                    lastRallyStartTimeSeconds = eventTimeSeconds; 
+                } else if (event.code === 'lopetaottelu') { break; }
+            }
+            return rallyDurations;
         }
 
+        // --- Generic Rally Duration Bar Chart Display Function ---
+        function displayGenericRallyDurationBarChart(rallyDurations, targetVisualizationEl, chartTitle) {
+            targetVisualizationEl.innerHTML = ''; 
+            if (!rallyDurations || rallyDurations.length === 0) {
+                targetVisualizationEl.innerHTML = `<p class="text-center text-gray-500">No rally data for "${chartTitle}".</p>`;
+                return;
+            }
+            const validRallies = rallyDurations.filter(r => r.durationSeconds > 0);
+            if (validRallies.length === 0) {
+                targetVisualizationEl.innerHTML = `<p class="text-center text-gray-500">No valid positive rally durations for "${chartTitle}".</p>`;
+                return;
+            }
+
+            const maxDuration = Math.ceil(Math.max(...validRallies.map(r => r.durationSeconds)));
+            const chartHeight = 220; 
+            const xAxisLabelHeight = 30; 
+            const yAxisLabelWidth = 35; 
+            const chartAreaPaddingTop = 10; 
+            const totalSvgHeight = chartHeight + xAxisLabelHeight + chartAreaPaddingTop;
+            const barGap = 3; 
+            const minBarWidth = 5; 
+            const chartDrawableWidth = targetVisualizationEl.clientWidth - yAxisLabelWidth;
+            const calculatedBarWidth = Math.max(minBarWidth, (chartDrawableWidth - (validRallies.length * barGap)) / validRallies.length);
+            const totalContentWidthBars = validRallies.length * (calculatedBarWidth + barGap);
+            const totalSvgWidth = totalContentWidthBars + yAxisLabelWidth;
+
+            const svgNS = "http://www.w3.org/2000/svg";
+            const svg = document.createElementNS(svgNS, "svg");
+            svg.setAttribute("width", Math.max(targetVisualizationEl.clientWidth, totalSvgWidth)); 
+            svg.setAttribute("height", totalSvgHeight);
+            svg.style.display = "block";
+
+            const numTicks = 5; 
+            for (let i = 0; i <= numTicks; i++) {
+                const tickValue = (maxDuration / numTicks) * i;
+                const tickY = chartAreaPaddingTop + chartHeight - (tickValue / maxDuration) * chartHeight;
+                const textLabel = document.createElementNS(svgNS, "text");
+                textLabel.setAttribute("x", yAxisLabelWidth - 5); 
+                textLabel.setAttribute("y", tickY + 3); 
+                textLabel.classList.add("y-axis-label");
+                textLabel.textContent = `${Math.round(tickValue)}s`;
+                svg.appendChild(textLabel);
+                const gridLine = document.createElementNS(svgNS, "line");
+                gridLine.setAttribute("x1", yAxisLabelWidth);
+                gridLine.setAttribute("y1", tickY);
+                gridLine.setAttribute("x2", yAxisLabelWidth + totalContentWidthBars);
+                gridLine.setAttribute("y2", tickY);
+                gridLine.classList.add("y-axis-line");
+                svg.appendChild(gridLine);
+            }
+            
+            validRallies.forEach((rally, index) => {
+                const barHeight = maxDuration > 0 ? (rally.durationSeconds / maxDuration) * chartHeight : 0;
+                const x = yAxisLabelWidth + index * (calculatedBarWidth + barGap); 
+                const rect = document.createElementNS(svgNS, "rect");
+                rect.setAttribute("x", x);
+                rect.setAttribute("y", chartAreaPaddingTop + chartHeight - barHeight); 
+                rect.setAttribute("width", calculatedBarWidth);
+                rect.setAttribute("height", barHeight);
+                let barColor = "#9ca3af"; 
+                const isTeamAInfoAvailable = teamAId && Object.values(playerStats).some(p => p.team === 'A');
+                const isTeamBInfoAvailable = teamBId && Object.values(playerStats).some(p => p.team === 'B');
+                if (rally.scoringTeam === 'A' && isTeamAInfoAvailable) barColor = "#3b82f6";
+                else if (rally.scoringTeam === 'B' && isTeamBInfoAvailable) barColor = "#ef4444";
+                rect.setAttribute("fill", barColor);
+                const title = document.createElementNS(svgNS, "title");
+                title.textContent = `Rally ${rally.rallyOverallNumber} (Set ${rally.setNumber}, #${rally.rallyInSetNumber}): ${rally.durationSeconds.toFixed(1)}s. Scored by Team ${rally.scoringTeam || 'N/A'}${rally.scorerPlayerId && playerStats[rally.scorerPlayerId] ? ' (Player: ' + playerStats[rally.scorerPlayerId].name + ' #' + playerStats[rally.scorerPlayerId].shirt + ')' : ''}. End: ${rally.endTimeWallTime}`;
+                rect.appendChild(title);
+                svg.appendChild(rect);
+
+                if (calculatedBarWidth >= 15) {
+                    const xLabel = document.createElementNS(svgNS, "text");
+                    xLabel.setAttribute("x", x + calculatedBarWidth / 2);
+                    xLabel.setAttribute("y", chartAreaPaddingTop + chartHeight + 15); 
+                    xLabel.setAttribute("text-anchor", "middle");
+                    xLabel.setAttribute("font-size", "9px");
+                    xLabel.setAttribute("fill", "#4b5563"); 
+                    xLabel.textContent = `${rally.rallyOverallNumber}`; // Use overall number for X-axis for consistency across charts if rally counts differ
+                    svg.appendChild(xLabel);
+                }
+            });
+            targetVisualizationEl.appendChild(svg);
+        }
+
+        // --- Display Rally Stats Summary (All Rallies) ---
+        function displayRallyStatsSummary(rallyDurationsData) {
+            rallyStatsSummaryContentEl.innerHTML = ''; 
+            if (!rallyDurationsData || rallyDurationsData.length === 0) { rallyStatsSummaryContentEl.innerHTML = '<p class="text-center text-gray-500">No rally data to calculate statistics.</p>'; return; }
+            const durations = rallyDurationsData.map(r => r.durationSeconds).filter(d => d > 0); 
+            if (durations.length === 0) { rallyStatsSummaryContentEl.innerHTML = '<p class="text-center text-gray-500">No valid positive rally durations found.</p>'; return; }
+            const mean = calculateMean(durations); const median = calculateMedian(durations); const range = calculateRange(durations); const stdDev = calculateStandardDeviation(durations);
+            const statsTable = document.createElement('table'); statsTable.id = 'rally-stats-summary-table'; statsTable.className = 'w-full'; 
+            const tbody = statsTable.createTBody();
+            function addStatRow(label, value, unit = 's') { const row = tbody.insertRow(); const cellLabel = row.insertCell(); cellLabel.textContent = label; cellLabel.className = 'font-semibold text-gray-600'; const cellValue = row.insertCell(); if (typeof value === 'number' && !isNaN(value)) { cellValue.textContent = unit ? value.toFixed(1) + unit : value.toString(); } else { cellValue.textContent = value || 'N/A'; } cellValue.className = 'text-gray-800'; }
+            addStatRow('Total Rallies Analyzed:', durations.length, null); addStatRow('Mean Rally Length:', mean); addStatRow('Median Rally Length:', median); addStatRow('Shortest Rally (Min):', range.min); addStatRow('Longest Rally (Max):', range.max); addStatRow('Standard Deviation:', stdDev);
+            rallyStatsSummaryContentEl.appendChild(statsTable);
+        }
+
+        // --- Display Player-Scored Rally Stats Summary ---
+        function displayPlayerScoredRallyStatsSummary(rallyDurationsData) {
+            playerScoredRallyStatsSummaryContentEl.innerHTML = ''; 
+            if (!rallyDurationsData || rallyDurationsData.length === 0) { playerScoredRallyStatsSummaryContentEl.innerHTML = '<p class="text-center text-gray-500">No rally data to calculate statistics.</p>'; return; }
+            const playerScoredRallies = rallyDurationsData.filter(r => r.scorerPlayerId !== null);
+            if (playerScoredRallies.length === 0) { playerScoredRallyStatsSummaryContentEl.innerHTML = '<p class="text-center text-gray-500">No rallies were found with a specific player marked as scorer.</p>'; return; }
+            const durations = playerScoredRallies.map(r => r.durationSeconds).filter(d => d > 0);
+            if (durations.length === 0) { playerScoredRallyStatsSummaryContentEl.innerHTML = '<p class="text-center text-gray-500">No valid positive durations for player-scored rallies.</p>'; return; }
+            const mean = calculateMean(durations); const median = calculateMedian(durations); const range = calculateRange(durations); const stdDev = calculateStandardDeviation(durations);
+            const statsTable = document.createElement('table'); statsTable.id = 'player-scored-rally-stats-table'; statsTable.className = 'w-full';
+            const tbody = statsTable.createTBody();
+            function addStatRow(label, value, unit = 's') { const row = tbody.insertRow(); const cellLabel = row.insertCell(); cellLabel.textContent = label; cellLabel.className = 'font-semibold text-gray-600'; const cellValue = row.insertCell(); if (typeof value === 'number' && !isNaN(value)) { cellValue.textContent = unit ? value.toFixed(1) + unit : value.toString(); } else { cellValue.textContent = value || 'N/A'; } cellValue.className = 'text-gray-800'; }
+            addStatRow('Player-Scored Rallies Analyzed:', durations.length, null); addStatRow('Mean Length (Player-Scored):', mean); addStatRow('Median Length (Player-Scored):', median); addStatRow('Shortest (Player-Scored):', range.min); addStatRow('Longest (Player-Scored):', range.max); addStatRow('Std. Deviation (Player-Scored):', stdDev);
+            playerScoredRallyStatsSummaryContentEl.appendChild(statsTable);
+        }
 
         // --- Load Team Matches Functions ---
         async function loadTeamMatches() {
             const url = teamMatchesUrlInput.value.trim();
-            if (!url) {
-                setStatusMessage(teamLoadStatusEl, 'Please enter a Team Matches URL.', 'error');
-                return;
-            }
+            if (!url) { setStatusMessage(teamLoadStatusEl, 'Please enter a Team Matches URL.', 'error'); return; }
             setStatusMessage(teamLoadStatusEl, 'Loading team matches...', 'loading');
-            loadTeamMatchesBtn.disabled = true;
-            matchListDisplayAreaEl.innerHTML = ''; // Clear previous list
-
+            loadTeamMatchesBtn.disabled = true; matchListDisplayAreaEl.innerHTML = ''; 
             try {
-                let parsedUrl;
-                try { parsedUrl = new URL(url); } catch (_) { throw new Error('Invalid URL format.'); }
-
-                // Optional: Hostname check (already in ALLOWED_HOSTNAME)
-                // if (ALLOWED_HOSTNAME && parsedUrl.hostname !== ALLOWED_HOSTNAME) {
-                // throw new Error(`Data can only be loaded from ${ALLOWED_HOSTNAME}`);
-                // }
-                if (!parsedUrl.pathname.includes('getMatches')) {
-                    throw new Error('URL does not appear to be a getMatches URL.');
-                }
-                if (!parsedUrl.searchParams.get('team_id')) {
-                     throw new Error('URL is missing the required team_id parameter.');
-                }
-
+                let parsedUrl; try { parsedUrl = new URL(url); } catch (_) { throw new Error('Invalid URL format.'); }
+                if (!parsedUrl.pathname.includes('getMatches')) { throw new Error('URL does not appear to be a getMatches URL.'); }
+                if (!parsedUrl.searchParams.get('team_id')) { throw new Error('URL is missing the required team_id parameter.'); }
                 const response = await fetch(url);
-                if (!response.ok) {
-                    throw new Error(`HTTP error! Status: ${response.status}`);
-                }
+                if (!response.ok) { throw new Error(`HTTP error! Status: ${response.status}`); }
                 const data = await response.json();
-
-                if (!data?.matches || !Array.isArray(data.matches)) {
-                    throw new Error('Invalid response format: Missing "matches" array.');
-                }
-
+                if (!data?.matches || !Array.isArray(data.matches)) { throw new Error('Invalid response format: Missing "matches" array.'); }
                 displayMatchList(data.matches);
                 setStatusMessage(teamLoadStatusEl, `Found ${data.matches.length} matches. Select a game to load.`, 'success');
-
-            } catch (error) {
-                console.error('Error loading team matches:', error);
-                setStatusMessage(teamLoadStatusEl, `Error: ${error.message}`, 'error');
-                matchListDisplayAreaEl.innerHTML = '<p class="text-red-500">Could not load matches.</p>';
-            } finally {
-                loadTeamMatchesBtn.disabled = false;
-            }
+            } catch (error) { console.error('Error loading team matches:', error); setStatusMessage(teamLoadStatusEl, `Error: ${error.message}`, 'error'); matchListDisplayAreaEl.innerHTML = '<p class="text-red-500">Could not load matches.</p>'; } 
+            finally { loadTeamMatchesBtn.disabled = false; }
         }
 
         function displayMatchList(matches) {
-            matchListDisplayAreaEl.innerHTML = ''; // Clear previous list
-            if (matches.length === 0) {
-                matchListDisplayAreaEl.innerHTML = '<p>No matches found for this team.</p>';
-                return;
-            }
-
-            const listTitle = document.createElement('h3');
-            listTitle.className = 'text-md font-semibold text-gray-700 mb-2';
-            listTitle.textContent = 'Select a Game to Replay:';
-            matchListDisplayAreaEl.appendChild(listTitle);
-
-            const ul = document.createElement('ul');
-            ul.className = 'space-y-2';
-
+            matchListDisplayAreaEl.innerHTML = ''; 
+            if (matches.length === 0) { matchListDisplayAreaEl.innerHTML = '<p>No matches found for this team.</p>'; return; }
+            const listTitle = document.createElement('h3'); listTitle.className = 'text-md font-semibold text-gray-700 mb-2'; listTitle.textContent = 'Select a Game to Replay:'; matchListDisplayAreaEl.appendChild(listTitle);
+            const ul = document.createElement('ul'); ul.className = 'space-y-2';
             matches.forEach(match => {
-                const li = document.createElement('li');
-                li.className = 'match-list-item';
-                li.classList.add(match.status === 'Played' ? 'played' : 'not-played');
-
+                const li = document.createElement('li'); li.className = 'match-list-item'; li.classList.add(match.status === 'Played' ? 'played' : 'not-played');
                 const dateStr = match.date ? new Date(match.date).toLocaleDateString() : 'No Date';
                 const score = (match.fs_A !== null && match.fs_B !== null) ? `(${match.fs_A} - ${match.fs_B})` : '';
-                
-                li.innerHTML = `
-                    <div class="font-medium">${match.team_A_name || 'Team A'} vs ${match.team_B_name || 'Team B'} ${score}</div>
-                    <div class="text-xs text-gray-500">${dateStr} - Status: ${match.status || 'Unknown'}</div>
-                `;
-
+                li.innerHTML = `<div class="font-medium">${match.team_A_name || 'Team A'} vs ${match.team_B_name || 'Team B'} ${score}</div> <div class="text-xs text-gray-500">${dateStr} - Status: ${match.status || 'Unknown'}</div>`;
                 if (match.status === 'Played' && match.match_id) {
                     li.title = `Click to load replay for match ID ${match.match_id}`;
-                    li.addEventListener('click', () => {
-                        const getMatchUrl = `${API_BASE_URL}getMatch?match_id=${match.match_id}`;
-                        gameUrlInput.value = getMatchUrl; // Populate the single game URL input
-                        loadGameData(getMatchUrl);       // Directly load the game
-                        // Optionally, scroll to the replay section or provide visual feedback
-                        replayUIContainerEl.scrollIntoView({ behavior: 'smooth' });
-                    });
-                } else {
-                    li.style.cursor = 'not-allowed';
-                    li.title = match.match_id ? 'This game is not marked as "Played".' : 'Match ID missing.';
-                }
+                    li.addEventListener('click', () => { const getMatchUrl = `${API_BASE_URL}getMatch?match_id=${match.match_id}`; gameUrlInput.value = getMatchUrl; loadGameData(getMatchUrl); replayUIContainerEl.scrollIntoView({ behavior: 'smooth' }); });
+                } else { li.style.cursor = 'not-allowed'; li.title = match.match_id ? 'This game is not marked as "Played".' : 'Match ID missing.'; }
                 ul.appendChild(li);
             });
             matchListDisplayAreaEl.appendChild(ul);
         }
 
-
-        // --- Load Single Game Data Function (existing, slightly adapted) ---
+        // --- Load Single Game Data Function ---
         async function loadGameData(url) {
-            setStatusMessage(loadStatusEl, 'Loading game data...', 'loading');
-            loadDataBtn.disabled = true;
-            teamLoadStatusEl.textContent = ''; // Clear team load status
-            resetUIState(); // Reset replay UI before loading new game
-
+            setStatusMessage(loadStatusEl, 'Loading game data...', 'loading'); loadDataBtn.disabled = true; teamLoadStatusEl.textContent = ''; resetUIState(); 
             try {
-                let parsedUrl;
-                try { parsedUrl = new URL(url); } catch (_) { throw new Error('Invalid URL format.'); }
-
-                if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
-                    throw new Error('URL must use http or https.');
-                }
-                // Optional Hostname Check
-                // if (ALLOWED_HOSTNAME && parsedUrl.hostname !== ALLOWED_HOSTNAME) {
-                // throw new Error(`Data can only be loaded from ${ALLOWED_HOSTNAME}`);
-                // }
-                if (!parsedUrl.searchParams.get('match_id')) {
-                     throw new Error('URL is missing the required match_id parameter for getMatch.');
-                }
-
-
+                let parsedUrl; try { parsedUrl = new URL(url); } catch (_) { throw new Error('Invalid URL format.'); }
+                if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') { throw new Error('URL must use http or https.'); }
+                if (!parsedUrl.searchParams.get('match_id')) { throw new Error('URL is missing the required match_id parameter for getMatch.'); }
                 const response = await fetch(url);
-                if (!response.ok) {
-                    throw new Error(`HTTP error! Status: ${response.status}`);
-                }
+                if (!response.ok) { throw new Error(`HTTP error! Status: ${response.status}`); }
                 const data = await response.json();
-
-                if (!data?.match?.events || !Array.isArray(data.match.events)) {
-                    throw new Error('Invalid game data: Missing "match.events" array.');
-                }
-                if (!data?.match?.lineups || !Array.isArray(data.match.lineups)) {
-                    throw new Error('Invalid game data: Missing "match.lineups" array.');
-                }
-                if (!data?.match?.team_A_id || !data?.match?.team_B_id) {
-                    throw new Error('Invalid game data: Missing team IDs.');
-                }
-
+                if (!data?.match?.events || !Array.isArray(data.match.events) || !data?.match?.lineups || !Array.isArray(data.match.lineups) || !data?.match?.team_A_id || !data?.match?.team_B_id) { throw new Error('Invalid game data: Missing critical fields like events, lineups, or team IDs.'); }
                 console.log("Game data fetched and validated successfully");
-                loadedGameData = data;
-                setStatusMessage(loadStatusEl, 'Game data loaded successfully!', 'success');
-                initializeGame(); // Initialize the replay with the new game data
-                replayUIContainerEl.classList.remove('opacity-50'); // Make replay UI visible
-
-            } catch (error) {
-                console.error('Error loading game data:', error);
-                setStatusMessage(loadStatusEl, `Error: ${error.message}`, 'error');
-                loadedGameData = null;
-                resetUIState(); // Ensure UI is reset on error
-            } finally {
-                loadDataBtn.disabled = false;
-            }
+                loadedGameData = data; setStatusMessage(loadStatusEl, 'Game data loaded successfully!', 'success'); initializeGame(); replayUIContainerEl.classList.remove('opacity-50'); 
+            } catch (error) { console.error('Error loading game data:', error); setStatusMessage(loadStatusEl, `Error: ${error.message}`, 'error'); loadedGameData = null; resetUIState(); } 
+            finally { loadDataBtn.disabled = false; }
         }
 
         // --- Reset UI Function ---
         function resetUIState() {
-            pausePlayback();
-            // Only control opacity of the replay-specific UI parts
-            replayUIContainerEl.classList.add('opacity-50');
-
-            prevEventBtn.disabled = true;
-            playPauseBtn.disabled = true;
-            playPauseBtn.textContent = 'Play';
-            nextEventBtn.disabled = true;
-            skipToEndBtn.disabled = true;
-
+            pausePlayback(); replayUIContainerEl.classList.add('opacity-50');
+            prevEventBtn.disabled = true; playPauseBtn.disabled = true; playPauseBtn.textContent = 'Play'; nextEventBtn.disabled = true; skipToEndBtn.disabled = true;
             eventDescEl.textContent = 'Load game data or select from a team list.';
-            setNumberEl.textContent = '-';
-            teamANameEl.textContent = 'Team A'; teamAPointsEl.textContent = '0'; teamASetsEl.textContent = '0';
-            teamBNameEl.textContent = 'Team B'; teamBPointsEl.textContent = '0'; teamBSetsEl.textContent = '0';
-            matchDateEl.textContent = 'Date'; matchTimeEl.textContent = 'Time'; matchVenueEl.textContent = 'Venue';
-            matchRefereeEl.textContent = 'Referee'; matchAttendanceEl.textContent = '0'; setElapsedTimeEl.textContent = '--:--';
+            setNumberEl.textContent = '-'; teamANameEl.textContent = 'Team A'; teamAPointsEl.textContent = '0'; teamASetsEl.textContent = '0'; teamBNameEl.textContent = 'Team B'; teamBPointsEl.textContent = '0'; teamBSetsEl.textContent = '0';
+            matchDateEl.textContent = 'Date'; matchTimeEl.textContent = 'Time'; matchVenueEl.textContent = 'Venue'; matchRefereeEl.textContent = 'Referee'; matchAttendanceEl.textContent = '0'; setElapsedTimeEl.textContent = '--:--';
             statsTeamANameEl.textContent = `Team A Stats`; statsTeamBNameEl.textContent = `Team B Stats`;
-            statsTeamATbody.innerHTML = ''; statsTeamATfoot.innerHTML = '';
-            statsTeamBTbody.innerHTML = ''; statsTeamBTfoot.innerHTML = '';
+            statsTeamATbody.innerHTML = ''; statsTeamATfoot.innerHTML = ''; statsTeamBTbody.innerHTML = ''; statsTeamBTfoot.innerHTML = '';
             document.querySelectorAll('.player-marker').forEach(marker => marker.remove());
+            
+            allRalliesDurationVisualizationEl.innerHTML = '<p class="text-center text-gray-500">Rally duration chart will appear here once a game is loaded.</p>';
+            allRalliesDurationChartAreaEl.classList.add('opacity-50');
+            rallyStatsSummaryContentEl.innerHTML = '<p class="text-center text-gray-500">Rally statistics will appear here.</p>';
+            rallyStatsSummaryAreaEl.classList.add('opacity-50');
+            
+            playerScoredRalliesDurationVisualizationEl.innerHTML = '<p class="text-center text-gray-500">Player-scored rally duration chart will appear here.</p>';
+            playerScoredRalliesDurationChartAreaEl.classList.add('opacity-50');
+            playerScoredRallyStatsSummaryContentEl.innerHTML = '<p class="text-center text-gray-500">Statistics for rallies scored by a specific player will appear here.</p>'; 
+            playerScoredRallyStatsSummaryAreaEl.classList.add('opacity-50'); 
 
-            // Clear game-specific state variables
-            loadedGameData = null;
-            currentEventIndex = -1;
-            sortedEvents = [];
-            gameHistory = [];
+            loadedGameData = null; currentEventIndex = -1; sortedEvents = []; gameHistory = [];
         }
-
 
         // --- Initialization Function ---
         function initializeGame() {
             console.log("Initializing game with loaded data...");
-            if (!loadedGameData?.match) {
-                console.error("Cannot initialize: No valid game data.");
-                resetUIState();
-                return;
-            }
-            pausePlayback(); // Ensure playback is paused
+            if (!loadedGameData?.match) { console.error("Cannot initialize: No valid game data."); resetUIState(); return; }
+            pausePlayback(); 
 
             const matchData = loadedGameData.match;
-            teamAId = matchData.team_A_id;
-            teamBId = matchData.team_B_id;
-
-            teamANameEl.textContent = matchData.team_A_name || 'Team A';
-            statsTeamANameEl.textContent = `${matchData.team_A_name || 'Team A'} Stats`;
-            teamBNameEl.textContent = matchData.team_B_name || 'Team B';
-            statsTeamBNameEl.textContent = `${matchData.team_B_name || 'Team B'} Stats`;
-
-            matchDateEl.textContent = matchData.date || 'N/A';
-            matchTimeEl.textContent = matchData.time || 'N/A';
-            matchVenueEl.textContent = matchData.venue_name || 'N/A';
-            matchRefereeEl.textContent = matchData.referee_1_name || 'N/A';
-            matchAttendanceEl.textContent = matchData.attendance || '0';
+            teamAId = matchData.team_A_id; teamBId = matchData.team_B_id;
+            teamANameEl.textContent = matchData.team_A_name || 'Team A'; statsTeamANameEl.textContent = `${matchData.team_A_name || 'Team A'} Stats`;
+            teamBNameEl.textContent = matchData.team_B_name || 'Team B'; statsTeamBNameEl.textContent = `${matchData.team_B_name || 'Team B'} Stats`;
+            matchDateEl.textContent = matchData.date || 'N/A'; matchTimeEl.textContent = matchData.time || 'N/A'; matchVenueEl.textContent = matchData.venue_name || 'N/A'; matchRefereeEl.textContent = matchData.referee_1_name || 'N/A'; matchAttendanceEl.textContent = matchData.attendance || '0';
 
             teamATimeouts = 0; teamBTimeouts = 0; teamASubs = 0; teamBSubs = 0;
-            (matchData.events || []).forEach(event => {
-                if (event.code === 'aikalisa') {
-                    if (event.team_id === teamAId) teamATimeouts++;
-                    else if (event.team_id === teamBId) teamBTimeouts++;
-                }
-            });
+            (matchData.events || []).forEach(event => { if (event.code === 'aikalisa') { if (event.team_id === teamAId) teamATimeouts++; else if (event.team_id === teamBId) teamBTimeouts++; } });
             const subsEvents = matchData.substitution_events || (matchData.events || []).filter(e => e.code === 'vaihto');
-            subsEvents.forEach(sub => {
-                if (sub.team_id === teamAId) teamASubs++;
-                else if (sub.team_id === teamBId) teamBSubs++;
-            });
+            subsEvents.forEach(sub => { if (sub.team_id === teamAId) teamASubs++; else if (sub.team_id === teamBId) teamBSubs++; });
 
             playerStats = {};
-            matchData.lineups.forEach(p => {
-                const playerIdStr = String(p.player_id);
-                if (playerIdStr && p.team_id && p.player_name && p.shirt_number !== undefined) {
-                    playerStats[playerIdStr] = { name: p.player_name, shirt: p.shirt_number, team: p.team_id === teamAId ? 'A' : 'B', points: 0, serves: 0, isCaptain: p.captain === 'C' };
-                } else { console.warn("Skipping invalid lineup entry:", p); }
-            });
+            matchData.lineups.forEach(p => { const playerIdStr = String(p.player_id); if (playerIdStr && p.team_id && p.player_name && p.shirt_number !== undefined) { playerStats[playerIdStr] = { name: p.player_name, shirt: p.shirt_number, team: p.team_id === teamAId ? 'A' : 'B', points: 0, serves: 0, isCaptain: p.captain === 'C' }; } else { console.warn("Skipping invalid lineup entry:", p); } });
 
-            sortedEvents = [...matchData.events].sort((a, b) => {
-                if (!a.wall_time || !b.wall_time) return 0;
-                if (a.wall_time < b.wall_time) return -1;
-                if (a.wall_time > b.wall_time) return 1;
-                return 0;
-            });
+            sortedEvents = [...matchData.events].sort((a, b) => { if (!a.wall_time || !b.wall_time) return 0; if (a.wall_time < b.wall_time) return -1; if (a.wall_time > b.wall_time) return 1; return 0; });
             sortedEvents.unshift({ code: "startgame", period: "0", wall_time: "00:00:00", code_fi: "Game Starting", description: "" });
 
             currentEventIndex = -1; currentSet = 0; teamAPoints = 0; teamBPoints = 0; teamASets = 0; teamBSets = 0;
             servingTeam = null; lastServingTeam = null; playerPositionsA = {}; playerPositionsB = {};
             teamAImpliedOpponentErrors = 0; teamBImpliedOpponentErrors = 0; currentSetStartTime = null; gameHistory = [];
 
-            replayUIContainerEl.classList.remove('opacity-50'); // Ensure replay UI is fully visible
-            displayEvent(0); // Display the "startgame" event
+            const rallyDurationsData = calculateRallyDurations(sortedEvents);
+            console.log("Calculated Rally Durations:", rallyDurationsData);
+            
+            // Display chart for all rallies
+            displayGenericRallyDurationBarChart(rallyDurationsData, allRalliesDurationVisualizationEl, "All Rallies");
+            allRalliesDurationChartAreaEl.classList.remove('opacity-50');
+            displayRallyStatsSummary(rallyDurationsData); 
+            rallyStatsSummaryAreaEl.classList.remove('opacity-50'); 
+
+            // Filter for player-scored rallies and display their chart & stats
+            const playerScoredRallies = rallyDurationsData.filter(r => r.scorerPlayerId !== null);
+            displayGenericRallyDurationBarChart(playerScoredRallies, playerScoredRalliesDurationVisualizationEl, "Player-Scored Rallies");
+            playerScoredRalliesDurationChartAreaEl.classList.remove('opacity-50');
+            displayPlayerScoredRallyStatsSummary(rallyDurationsData); // This already filters internally
+            playerScoredRallyStatsSummaryAreaEl.classList.remove('opacity-50'); 
+
+            replayUIContainerEl.classList.remove('opacity-50'); 
+            displayEvent(0); 
             saveState();
             updateStatsTable();
             updateSetElapsedTimeUI(null);
@@ -541,58 +636,70 @@
         function pausePlayback() { if (!isPlaying && !playIntervalId) return; isPlaying = false; if (playIntervalId) { clearInterval(playIntervalId); playIntervalId = null; } playPauseBtn.textContent = 'Play'; playPauseBtn.classList.remove('bg-yellow-500', 'hover:bg-yellow-600'); playPauseBtn.classList.add('bg-green-500', 'hover:bg-green-600'); if(loadedGameData) { const isEnd = currentEventIndex >= sortedEvents.length - 1 || sortedEvents[currentEventIndex]?.code === 'lopetaottelu'; prevEventBtn.disabled = currentEventIndex <= 0; nextEventBtn.disabled = isEnd; playPauseBtn.disabled = isEnd; skipToEndBtn.disabled = isEnd; } else { prevEventBtn.disabled = true; nextEventBtn.disabled = true; playPauseBtn.disabled = true; skipToEndBtn.disabled = true; } }
 
         // --- State Management for Previous Button ---
-        function saveState() {
-             if (!loadedGameData) return; const state = { index: currentEventIndex, set: currentSet, pointsA: teamAPoints, pointsB: teamBPoints, setsA: teamASets, setsB: teamBSets, serving: servingTeam, lastServing: lastServingTeam, posA: JSON.parse(JSON.stringify(playerPositionsA)), posB: JSON.parse(JSON.stringify(playerPositionsB)), stats: JSON.parse(JSON.stringify(playerStats)), errorsA: teamAImpliedOpponentErrors, errorsB: teamBImpliedOpponentErrors, setStartTime: currentSetStartTime }; if (gameHistory.length === 0 || gameHistory[gameHistory.length - 1].index !== state.index) { gameHistory.push(state); }
-        }
-        function restoreState(state) {
-            if (!loadedGameData || !state) return; currentEventIndex = state.index; currentSet = state.set; teamAPoints = state.pointsA; teamBPoints = state.pointsB; teamASets = state.setsA; teamBSets = state.setsB; servingTeam = state.serving; lastServingTeam = state.lastServing; playerPositionsA = JSON.parse(JSON.stringify(state.posA)); playerPositionsB = JSON.parse(JSON.stringify(state.posB)); playerStats = JSON.parse(JSON.stringify(state.stats)); teamAImpliedOpponentErrors = state.errorsA; teamBImpliedOpponentErrors = state.errorsB; currentSetStartTime = state.setStartTime; const event = sortedEvents[currentEventIndex]; eventDescEl.textContent = event?.code_fi || event?.code || "State Restored"; updateScoreboard(); drawCourt(); updateStatsTable(); updateSetElapsedTimeUI(event?.wall_time); pausePlayback();
-        }
+        function saveState() { if (!loadedGameData) return; const state = { index: currentEventIndex, set: currentSet, pointsA: teamAPoints, pointsB: teamBPoints, setsA: teamASets, setsB: teamBSets, serving: servingTeam, lastServing: lastServingTeam, posA: JSON.parse(JSON.stringify(playerPositionsA)), posB: JSON.parse(JSON.stringify(playerPositionsB)), stats: JSON.parse(JSON.stringify(playerStats)), errorsA: teamAImpliedOpponentErrors, errorsB: teamBImpliedOpponentErrors, setStartTime: currentSetStartTime }; if (gameHistory.length === 0 || gameHistory[gameHistory.length - 1].index !== state.index) { gameHistory.push(state); } }
+        function restoreState(state) { if (!loadedGameData || !state) return; currentEventIndex = state.index; currentSet = state.set; teamAPoints = state.pointsA; teamBPoints = state.pointsB; teamASets = state.setsA; teamBSets = state.setsB; servingTeam = state.serving; lastServingTeam = state.lastServing; playerPositionsA = JSON.parse(JSON.stringify(state.posA)); playerPositionsB = JSON.parse(JSON.stringify(state.posB)); playerStats = JSON.parse(JSON.stringify(state.stats)); teamAImpliedOpponentErrors = state.errorsA; teamBImpliedOpponentErrors = state.errorsB; currentSetStartTime = state.setStartTime; const event = sortedEvents[currentEventIndex]; eventDescEl.textContent = event?.code_fi || event?.code || "State Restored"; updateScoreboard(); drawCourt(); updateStatsTable(); updateSetElapsedTimeUI(event?.wall_time); pausePlayback(); }
 
         // --- Rotation Logic ---
-        function rotateTeam(teamId) { const currentPositions = teamId === 'A' ? playerPositionsA : playerPositionsB; const newPositions = {}; newPositions[1] = currentPositions[2]; newPositions[6] = currentPositions[1]; newPositions[5] = currentPositions[6]; newPositions[4] = currentPositions[5]; newPositions[3] = currentPositions[4]; newPositions[2] = currentPositions[3]; for (let zone = 1; zone <= 6; zone++) { if (teamId === 'A') playerPositionsA[zone] = newPositions[zone] || null; else playerPositionsB[zone] = newPositions[zone] || null; } }
+        function rotateTeam(teamIdSymbol) { const currentPositions = teamIdSymbol === 'A' ? playerPositionsA : playerPositionsB; const newPositions = {}; newPositions[1] = currentPositions[2]; newPositions[6] = currentPositions[1]; newPositions[5] = currentPositions[6]; newPositions[4] = currentPositions[5]; newPositions[3] = currentPositions[4]; newPositions[2] = currentPositions[3]; for (let zone = 1; zone <= 6; zone++) { if (teamIdSymbol === 'A') playerPositionsA[zone] = newPositions[zone] || null; else playerPositionsB[zone] = newPositions[zone] || null; } }
 
         // --- Set Starting Lineup ---
         function setStartingLineup(setNumber) { playerPositionsA = {}; playerPositionsB = {}; if (!loadedGameData?.match?.lineups) return; loadedGameData.match.lineups.forEach(p => { const playerIdStr = String(p.player_id); if (p.playing_position?.[setNumber]) { const zone = p.playing_position[setNumber]; if (zone >= 1 && zone <= 6) { if (p.team_id === teamAId) playerPositionsA[zone] = playerIdStr; else playerPositionsB[zone] = playerIdStr; } } }); }
 
         // --- Update UI Functions ---
         function updateScoreboard() { setNumberEl.textContent = currentSet > 0 ? currentSet : '-'; teamAPointsEl.textContent = teamAPoints; teamBPointsEl.textContent = teamBPoints; teamASetsEl.textContent = teamASets; teamBSetsEl.textContent = teamBSets; }
-        function drawCourt() { document.querySelectorAll('.player-marker').forEach(marker => marker.remove()); const drawMarkers = (positions, teamClass) => { for (const zone in positions) { const playerId = positions[zone]; if (playerId && playerStats[playerId]) { const zoneEl = document.getElementById(`zone-${teamClass}-${zone}`); if (zoneEl) { const marker = document.createElement('div'); marker.classList.add('player-marker'); marker.classList.add(teamClass === 'a' ? 'team-a' : 'team-b'); marker.dataset.playerId = playerId; marker.textContent = playerStats[playerId].shirt; marker.title = playerStats[playerId].name; if ((servingTeam === 'A' && teamClass === 'a' && parseInt(zone) === 1) || (servingTeam === 'B' && teamClass === 'b' && parseInt(zone) === 1)) { marker.classList.add('serving'); } zoneEl.appendChild(marker); } } } }; drawMarkers(playerPositionsA, 'a'); drawMarkers(playerPositionsB, 'b'); }
+        function drawCourt() {
+            document.querySelectorAll('.player-marker').forEach(marker => marker.remove());
+            const formatPlayerNameForMarker = (fullName) => {
+                if (!fullName || typeof fullName !== 'string') return '';
+                const parts = fullName.trim().split(' ');
+                if (parts.length === 0) return '';
+                const firstName = parts[0];
+                let lastNameInitial = '';
+                if (parts.length > 1) { lastNameInitial = parts[parts.length - 1].charAt(0).toUpperCase() + '.'; }
+                return parts.length === 1 ? firstName : `${firstName} ${lastNameInitial}`;
+            };
+            const drawMarkers = (positions, teamClass) => {
+                for (const zone in positions) {
+                    const playerId = positions[zone];
+                    if (playerId && playerStats[playerId]) {
+                        const zoneEl = document.getElementById(`zone-${teamClass}-${zone}`);
+                        if (zoneEl) {
+                            const marker = document.createElement('div');
+                            marker.classList.add('player-marker');
+                            marker.classList.add(teamClass === 'a' ? 'team-a' : 'team-b');
+                            marker.dataset.playerId = playerId;
+                            const numberSpan = document.createElement('span');
+                            numberSpan.classList.add('shirt-number');
+                            numberSpan.textContent = playerStats[playerId].shirt;
+                            const nameSpan = document.createElement('span');
+                            nameSpan.classList.add('player-name-on-marker');
+                            nameSpan.textContent = formatPlayerNameForMarker(playerStats[playerId].name);
+                            marker.title = playerStats[playerId].name; 
+                            marker.appendChild(numberSpan); marker.appendChild(nameSpan);
+                            if ((servingTeam === 'A' && teamClass === 'a' && parseInt(zone) === 1) || (servingTeam === 'B' && teamClass === 'b' && parseInt(zone) === 1)) { marker.classList.add('serving'); }
+                            zoneEl.appendChild(marker);
+                        }
+                    }
+                }
+            };
+            drawMarkers(playerPositionsA, 'a'); drawMarkers(playerPositionsB, 'b');
+        }
         function updateStatsTable() {
             statsTeamATbody.innerHTML = ''; statsTeamATfoot.innerHTML = '';
             statsTeamBTbody.innerHTML = ''; statsTeamBTfoot.innerHTML = '';
-            Object.entries(playerStats)
-                  .filter(([, stats]) => stats.shirt) // Ensure player has a shirt number
-                  .sort(([,a],[,b]) => parseInt(a.shirt) - parseInt(b.shirt))
-                  .forEach(([playerId, stats]) => {
-                    const row = document.createElement('tr');
-                    const captainMark = stats.isCaptain ? ' (C)' : '';
-                    row.innerHTML = `
-                        <td>${stats.shirt}</td>
-                        <td>${stats.name}${captainMark}</td>
-                        <td>${stats.points}</td>
-                        <td>${stats.serves}</td>
-                        `;
-                    if (stats.team === 'A') statsTeamATbody.appendChild(row);
-                    else statsTeamBTbody.appendChild(row);
-            });
-            const errorRowA = document.createElement('tr'); errorRowA.classList.add('summary-row');
-            errorRowA.innerHTML = `<td colspan="2">Opponent Errors (Implied)</td><td>${teamAImpliedOpponentErrors}</td><td>-</td>`; statsTeamATfoot.appendChild(errorRowA);
-            const subsRowA = document.createElement('tr'); subsRowA.classList.add('summary-row');
-            subsRowA.innerHTML = `<td colspan="2">Total Substitutions</td><td>${teamASubs}</td><td>-</td>`; statsTeamATfoot.appendChild(subsRowA);
-            const timeoutRowA = document.createElement('tr'); timeoutRowA.classList.add('summary-row');
-            timeoutRowA.innerHTML = `<td colspan="2">Timeouts Used</td><td>${teamATimeouts}</td><td>-</td>`; statsTeamATfoot.appendChild(timeoutRowA);
-            const errorRowB = document.createElement('tr'); errorRowB.classList.add('summary-row');
-            errorRowB.innerHTML = `<td colspan="2">Opponent Errors (Implied)</td><td>${teamBImpliedOpponentErrors}</td><td>-</td>`; statsTeamBTfoot.appendChild(errorRowB);
-            const subsRowB = document.createElement('tr'); subsRowB.classList.add('summary-row');
-            subsRowB.innerHTML = `<td colspan="2">Total Substitutions</td><td>${teamBSubs}</td><td>-</td>`; statsTeamBTfoot.appendChild(subsRowB);
-            const timeoutRowB = document.createElement('tr'); timeoutRowB.classList.add('summary-row');
-            timeoutRowB.innerHTML = `<td colspan="2">Timeouts Used</td><td>${teamBTimeouts}</td><td>-</td>`; statsTeamBTfoot.appendChild(timeoutRowB);
+            Object.entries(playerStats).filter(([, stats]) => stats.shirt).sort(([,a],[,b]) => parseInt(a.shirt) - parseInt(b.shirt)).forEach(([playerId, stats]) => { const row = document.createElement('tr'); const captainMark = stats.isCaptain ? ' (C)' : ''; row.innerHTML = `<td>${stats.shirt}</td><td>${stats.name}${captainMark}</td><td>${stats.points}</td><td>${stats.serves}</td>`; if (stats.team === 'A') statsTeamATbody.appendChild(row); else statsTeamBTbody.appendChild(row); });
+            const errorRowA = document.createElement('tr'); errorRowA.classList.add('summary-row'); errorRowA.innerHTML = `<td colspan="2">Opponent Errors (Implied)</td><td>${teamAImpliedOpponentErrors}</td><td>-</td>`; statsTeamATfoot.appendChild(errorRowA);
+            const subsRowA = document.createElement('tr'); subsRowA.classList.add('summary-row'); subsRowA.innerHTML = `<td colspan="2">Total Substitutions</td><td>${teamASubs}</td><td>-</td>`; statsTeamATfoot.appendChild(subsRowA);
+            const timeoutRowA = document.createElement('tr'); timeoutRowA.classList.add('summary-row'); timeoutRowA.innerHTML = `<td colspan="2">Timeouts Used</td><td>${teamATimeouts}</td><td>-</td>`; statsTeamATfoot.appendChild(timeoutRowA);
+            const errorRowB = document.createElement('tr'); errorRowB.classList.add('summary-row'); errorRowB.innerHTML = `<td colspan="2">Opponent Errors (Implied)</td><td>${teamBImpliedOpponentErrors}</td><td>-</td>`; statsTeamBTfoot.appendChild(errorRowB);
+            const subsRowB = document.createElement('tr'); subsRowB.classList.add('summary-row'); subsRowB.innerHTML = `<td colspan="2">Total Substitutions</td><td>${teamBSubs}</td><td>-</td>`; statsTeamBTfoot.appendChild(subsRowB);
+            const timeoutRowB = document.createElement('tr'); timeoutRowB.classList.add('summary-row'); timeoutRowB.innerHTML = `<td colspan="2">Total Timeouts Used</td><td>${teamBTimeouts}</td><td>-</td>`; statsTeamBTfoot.appendChild(timeoutRowB);
         }
         function updateSetElapsedTimeUI(currentEventTimeStr) { if (currentSetStartTime && currentEventTimeStr) { const startSeconds = parseTimeToSeconds(currentSetStartTime); const currentSeconds = parseTimeToSeconds(currentEventTimeStr); if (startSeconds !== null && currentSeconds !== null && currentSeconds >= startSeconds) { const elapsedSeconds = currentSeconds - startSeconds; setElapsedTimeEl.textContent = formatSecondsToMMSS(elapsedSeconds); } else { setElapsedTimeEl.textContent = "--:--"; } } else { setElapsedTimeEl.textContent = "00:00"; } }
 
         // --- Highlight Functions ---
         function highlightPointScorer(playerId) { if (pointScorerHighlightTimeout) clearTimeout(pointScorerHighlightTimeout); document.querySelectorAll('.player-marker.point-scorer').forEach(el => el.classList.remove('point-scorer')); if (!playerId || !playerStats[playerId]) return; const scorerMarker = document.querySelector(`.player-marker[data-player-id="${playerId}"]`); if (scorerMarker) { scorerMarker.classList.add('point-scorer'); pointScorerHighlightTimeout = setTimeout(() => { scorerMarker.classList.remove('point-scorer'); pointScorerHighlightTimeout = null; }, 1500); } }
-        function highlightLostPointSide(losingTeamId) { if (lostPointHighlightTimeout) clearTimeout(lostPointHighlightTimeout); courtSideAEl.classList.remove('lost-point-highlight'); courtSideBEl.classList.remove('lost-point-highlight'); const targetSideEl = losingTeamId === 'A' ? courtSideAEl : courtSideBEl; if (targetSideEl) { targetSideEl.classList.add('lost-point-highlight'); lostPointHighlightTimeout = setTimeout(() => { targetSideEl.classList.remove('lost-point-highlight'); lostPointHighlightTimeout = null; }, 800); } }
+        function highlightLostPointSide(losingTeamIdSymbol) { if (lostPointHighlightTimeout) clearTimeout(lostPointHighlightTimeout); courtSideAEl.classList.remove('lost-point-highlight'); courtSideBEl.classList.remove('lost-point-highlight'); const targetSideEl = losingTeamIdSymbol === 'A' ? courtSideAEl : courtSideBEl; if (targetSideEl) { targetSideEl.classList.add('lost-point-highlight'); lostPointHighlightTimeout = setTimeout(() => { targetSideEl.classList.remove('lost-point-highlight'); lostPointHighlightTimeout = null; }, 800); } }
 
         // --- Process Single Event for State Update (No UI) ---
         function processEventForStateUpdate(event) {
@@ -623,10 +730,7 @@
         }
 
         // --- Event Listeners ---
-        // For Team Matches
         loadTeamMatchesBtn.addEventListener('click', loadTeamMatches);
-
-        // For Single Game Replay (existing)
         loadDataBtn.addEventListener('click', () => { const url = gameUrlInput.value.trim(); if (url) { loadGameData(url); } else { setStatusMessage(loadStatusEl, 'Please enter a Game Data URL.', 'error'); } });
         playPauseBtn.addEventListener('click', () => { if (isPlaying) { pausePlayback(); } else { playPlayback(); } });
         nextEventBtn.addEventListener('click', () => { pausePlayback(); if (loadedGameData && currentEventIndex < sortedEvents.length - 1) { displayEvent(currentEventIndex + 1, false); } });
@@ -635,12 +739,10 @@
 
         // --- Initial Load ---
          document.addEventListener('DOMContentLoaded', () => {
-            resetUIState(); // Start in reset state for the replay UI
+            resetUIState(); 
             setStatusMessage(teamLoadStatusEl, 'Enter a team URL to list matches.', 'info');
             setStatusMessage(loadStatusEl, 'Enter a game URL or select from a team list.', 'info');
          });
-
     </script>
-
 </body>
 </html>
