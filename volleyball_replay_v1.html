@@ -60,96 +60,135 @@
         .summary-row td { font-style: italic; color: #4b5563; background-color: #f9fafb; /* gray-50 */}
         button:disabled { opacity: 0.5; cursor: not-allowed; }
         /* Status message styles */
-        .status-loading { color: #2563eb; } /* blue-600 */
-        .status-error { color: #dc2626; } /* red-600 */
-        .status-success { color: #16a34a; } /* green-600 */
+        .status-loading { color: #2563eb; /* blue-600 */ }
+        .status-error { color: #dc2626; /* red-600 */ }
+        .status-success { color: #16a34a; /* green-600 */ }
+        /* Match list item style */
+        .match-list-item {
+            padding: 0.5rem;
+            border: 1px solid #e5e7eb; /* gray-200 */
+            border-radius: 0.375rem; /* rounded-md */
+            margin-bottom: 0.5rem;
+            cursor: pointer;
+            transition: background-color 0.2s ease-in-out;
+        }
+        .match-list-item:hover {
+            background-color: #f9fafb; /* gray-50 */
+        }
+        .match-list-item.played {
+            border-left: 4px solid #16a34a; /* green-600 */
+        }
+        .match-list-item.not-played {
+            border-left: 4px solid #f59e0b; /* amber-500 */
+            opacity: 0.7;
+        }
     </style>
 </head>
 <body class="bg-gray-100 font-sans p-4 md:p-8">
 
     <div class="container mx-auto max-w-4xl bg-white p-6 rounded-lg shadow-lg">
 
-        <h1 class="text-2xl font-bold text-center mb-4 text-gray-800">Volleyball Game Replay</h1>
+        <h1 class="text-2xl font-bold text-center mb-6 text-gray-800">Volleyball Game Replay</h1>
+
+        <div class="mb-6 p-4 border border-gray-300 rounded-md bg-gray-50">
+            <h2 class="text-lg font-semibold text-gray-700 mb-2">Load Team's Games</h2>
+            <label for="team-matches-url" class="block text-sm font-medium text-gray-700 mb-1">Team Matches URL (getMatches?team_id=...):</label>
+            <div class="flex space-x-2">
+                <input type="text" id="team-matches-url" class="flex-grow p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="Paste team matches URL here">
+                <button id="load-team-matches-btn" class="bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-4 rounded-md transition duration-150 ease-in-out whitespace-nowrap">
+                    Load Team Matches
+                </button>
+            </div>
+            <div id="team-load-status" class="mt-2 text-sm h-5"></div>
+        </div>
+
+        <div id="match-list-display-area" class="mb-6">
+            </div>
 
         <div class="mb-4 p-4 border border-gray-300 rounded-md bg-gray-50">
-            <label for="game-url" class="block text-sm font-medium text-gray-700 mb-1">Game Data URL:</label>
+            <h2 class="text-lg font-semibold text-gray-700 mb-2">Load Single Game by URL</h2>
+            <label for="game-url" class="block text-sm font-medium text-gray-700 mb-1">Specific Game Data URL (getMatch?match_id=...):</label>
             <div class="flex space-x-2">
-                <input type="text" id="game-url" class="flex-grow p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="Paste game data URL here (e.g., https://lentopallo-api.torneopal.net/...)">
+                <input type="text" id="game-url" class="flex-grow p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="Paste specific game data URL here or select from list above">
                 <button id="load-data-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-md transition duration-150 ease-in-out">
                     Load Game
                 </button>
             </div>
-            <div id="load-status" class="mt-2 text-sm h-5"></div> </div>
-
-        <div id="scoreboard" class="text-center text-xl font-semibold mb-2 p-3 bg-gray-200 rounded-md text-gray-700 opacity-50">
-            Set <span id="set-number">-</span> |
-            <span id="team-a-name">Team A</span> <span id="team-a-points">0</span> -
-            <span id="team-b-points">0</span> <span id="team-b-name">Team B</span> |
-            Sets: <span id="team-a-sets">0</span> - <span id="team-b-sets">0</span>
-        </div>
-
-        <div id="match-info" class="text-xs text-center text-gray-600 mb-4 border-t border-b py-1 opacity-50">
-            <span id="match-date">Date</span> @ <span id="match-time">Time</span> |
-            Venue: <span id="match-venue">Venue</span> |
-            Referee: <span id="match-referee">Referee</span> |
-            Attendance: <span id="match-attendance">0</span> |
-            Set Time: <span id="set-elapsed-time">--:--</span>
+            <div id="load-status" class="mt-2 text-sm h-5"></div>
         </div>
 
 
-        <div class="flex items-stretch justify-center mb-4 opacity-50" id="court-area">
-            <div id="court-side-a" class="court-side w-1/2 grid grid-cols-2 grid-rows-3">
-                <div id="zone-a-5" class="court-zone"></div> <div id="zone-a-4" class="court-zone"></div>
-                <div id="zone-a-6" class="court-zone"></div> <div id="zone-a-3" class="court-zone"></div>
-                <div id="zone-a-1" class="court-zone"></div> <div id="zone-a-2" class="court-zone"></div>
+        <div id="replay-ui-container" class="opacity-50">
+            <div id="scoreboard" class="text-center text-xl font-semibold mb-2 p-3 bg-gray-200 rounded-md text-gray-700">
+                Set <span id="set-number">-</span> |
+                <span id="team-a-name">Team A</span> <span id="team-a-points">0</span> -
+                <span id="team-b-points">0</span> <span id="team-b-name">Team B</span> |
+                Sets: <span id="team-a-sets">0</span> - <span id="team-b-sets">0</span>
             </div>
-            <div class="net w-1 mx-0"></div>
-            <div id="court-side-b" class="court-side w-1/2 grid grid-cols-2 grid-rows-3">
-                 <div id="zone-b-2" class="court-zone"></div> <div id="zone-b-1" class="court-zone"></div>
-                 <div id="zone-b-3" class="court-zone"></div> <div id="zone-b-6" class="court-zone"></div>
-                 <div id="zone-b-4" class="court-zone"></div> <div id="zone-b-5" class="court-zone"></div>
+
+            <div id="match-info" class="text-xs text-center text-gray-600 mb-4 border-t border-b py-1">
+                <span id="match-date">Date</span> @ <span id="match-time">Time</span> |
+                Venue: <span id="match-venue">Venue</span> |
+                Referee: <span id="match-referee">Referee</span> |
+                Attendance: <span id="match-attendance">0</span> |
+                Set Time: <span id="set-elapsed-time">--:--</span>
             </div>
-        </div>
 
-        <div id="event-description" class="text-center text-lg italic text-gray-600 mb-4 h-6">
-            Load game data using the URL field above.
-        </div>
 
-        <div class="text-center mb-6 space-x-2">
-            <button id="prev-event" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg transition duration-150 ease-in-out" disabled>
-                Previous Event
-            </button>
-             <button id="play-pause-btn" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg transition duration-150 ease-in-out w-24" disabled>
-                Play
-            </button>
-            <button id="next-event" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition duration-150 ease-in-out" disabled>
-                Next Event
-            </button>
-             <button id="skip-to-end-btn" class="bg-purple-500 hover:bg-purple-600 text-white font-bold py-2 px-4 rounded-lg transition duration-150 ease-in-out" disabled>
-                Skip to End
-            </button>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 opacity-50" id="stats-area">
-            <div>
-                <h3 id="stats-team-a-name" class="text-lg font-semibold mb-2 text-center">Team A Stats</h3>
-                <table id="stats-team-a">
-                    <thead>
-                        <tr><th>#</th><th>Name</th><th>Points</th><th>Serves</th></tr>
-                    </thead>
-                    <tbody></tbody>
-                    <tfoot></tfoot>
-                </table>
+            <div class="flex items-stretch justify-center mb-4" id="court-area">
+                <div id="court-side-a" class="court-side w-1/2 grid grid-cols-2 grid-rows-3">
+                    <div id="zone-a-5" class="court-zone"></div> <div id="zone-a-4" class="court-zone"></div>
+                    <div id="zone-a-6" class="court-zone"></div> <div id="zone-a-3" class="court-zone"></div>
+                    <div id="zone-a-1" class="court-zone"></div> <div id="zone-a-2" class="court-zone"></div>
+                </div>
+                <div class="net w-1 mx-0"></div>
+                <div id="court-side-b" class="court-side w-1/2 grid grid-cols-2 grid-rows-3">
+                     <div id="zone-b-2" class="court-zone"></div> <div id="zone-b-1" class="court-zone"></div>
+                     <div id="zone-b-3" class="court-zone"></div> <div id="zone-b-6" class="court-zone"></div>
+                     <div id="zone-b-4" class="court-zone"></div> <div id="zone-b-5" class="court-zone"></div>
+                </div>
             </div>
-            <div>
-                <h3 id="stats-team-b-name" class="text-lg font-semibold mb-2 text-center">Team B Stats</h3>
-                <table id="stats-team-b">
-                     <thead>
-                         <tr><th>#</th><th>Name</th><th>Points</th><th>Serves</th></tr>
-                    </thead>
-                    <tbody></tbody>
-                    <tfoot></tfoot>
-                </table>
+
+            <div id="event-description" class="text-center text-lg italic text-gray-600 mb-4 h-6">
+                Load game data using the URL field above or select from a team's match list.
+            </div>
+
+            <div class="text-center mb-6 space-x-2">
+                <button id="prev-event" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg transition duration-150 ease-in-out" disabled>
+                    Previous Event
+                </button>
+                 <button id="play-pause-btn" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg transition duration-150 ease-in-out w-24" disabled>
+                    Play
+                </button>
+                <button id="next-event" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition duration-150 ease-in-out" disabled>
+                    Next Event
+                </button>
+                 <button id="skip-to-end-btn" class="bg-purple-500 hover:bg-purple-600 text-white font-bold py-2 px-4 rounded-lg transition duration-150 ease-in-out" disabled>
+                    Skip to End
+                </button>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="stats-area">
+                <div>
+                    <h3 id="stats-team-a-name" class="text-lg font-semibold mb-2 text-center">Team A Stats</h3>
+                    <table id="stats-team-a">
+                        <thead>
+                            <tr><th>#</th><th>Name</th><th>Points</th><th>Serves</th></tr>
+                        </thead>
+                        <tbody></tbody>
+                        <tfoot></tfoot>
+                    </table>
+                </div>
+                <div>
+                    <h3 id="stats-team-b-name" class="text-lg font-semibold mb-2 text-center">Team B Stats</h3>
+                    <table id="stats-team-b">
+                         <thead>
+                             <tr><th>#</th><th>Name</th><th>Points</th><th>Serves</th></tr>
+                        </thead>
+                        <tbody></tbody>
+                        <tfoot></tfoot>
+                    </table>
+                </div>
             </div>
         </div>
 
@@ -159,13 +198,22 @@
         // --- APPLICATION LOGIC ---
 
         // --- Configuration ---
-        const ALLOWED_HOSTNAME = "lentopallo-api.torneopal.net";
+        const API_BASE_URL = "https://lentopallo-api.torneopal.net/taso/rest/"; // Added for constructing getMatch URLs
+        const ALLOWED_HOSTNAME = "lentopallo-api.torneopal.net"; // Keep for validation if needed
         const playbackSpeed = 1500;
 
         // --- DOM Elements Globals ---
+        // For Team Matches
+        const teamMatchesUrlInput = document.getElementById('team-matches-url');
+        const loadTeamMatchesBtn = document.getElementById('load-team-matches-btn');
+        const teamLoadStatusEl = document.getElementById('team-load-status');
+        const matchListDisplayAreaEl = document.getElementById('match-list-display-area');
+
+        // For Single Game Replay (existing)
         const gameUrlInput = document.getElementById('game-url');
         const loadDataBtn = document.getElementById('load-data-btn');
         const loadStatusEl = document.getElementById('load-status');
+        const replayUIContainerEl = document.getElementById('replay-ui-container'); // Wrapper for replay UI
         const scoreboardEl = document.getElementById('scoreboard');
         const matchInfoEl = document.getElementById('match-info');
         const matchDateEl = document.getElementById('match-date');
@@ -210,9 +258,7 @@
         let lastServingTeam = null;
         let playerPositionsA = {};
         let playerPositionsB = {};
-        let playerStats = {}; // Holds running stats: { playerId: { name: '', shirt: '', team: '', points: 0, serves: 0, isCaptain: false }, ... }
-        // let finalPlayerPoints = {}; // REMOVED - No longer storing final points separately
-        let captainIds = []; // REMOVED - Captain status stored in playerStats
+        let playerStats = {};
         let teamATimeouts = 0;
         let teamBTimeouts = 0;
         let teamASubs = 0;
@@ -229,126 +275,297 @@
         let playIntervalId = null;
 
         // --- Helper Functions ---
-        /** Parses HH:MM:SS time string into seconds from midnight. */
         function parseTimeToSeconds(timeString) { if (!timeString || typeof timeString !== 'string') return null; const parts = timeString.split(':'); if (parts.length === 3) { const h = parseInt(parts[0], 10); const m = parseInt(parts[1], 10); const s = parseInt(parts[2], 10); if (!isNaN(h) && !isNaN(m) && !isNaN(s)) { return h * 3600 + m * 60 + s; } } return null; }
-        /** Formats total seconds into MM:SS format. */
         function formatSecondsToMMSS(totalSeconds) { if (totalSeconds === null || totalSeconds < 0 || isNaN(totalSeconds)) { return "--:--"; } const minutes = Math.floor(totalSeconds / 60); const seconds = Math.floor(totalSeconds % 60); const paddedMinutes = String(minutes).padStart(2, '0'); const paddedSeconds = String(seconds).padStart(2, '0'); return `${paddedMinutes}:${paddedSeconds}`; }
 
+        /** Sets status message and style for a given element */
+        function setStatusMessage(element, message, type = 'info') {
+            element.textContent = message;
+            let className = 'mt-2 text-sm h-5 '; // Base classes
+            if (type === 'loading') className += 'status-loading';
+            else if (type === 'error') className += 'status-error';
+            else if (type === 'success') className += 'status-success';
+            element.className = className;
+        }
 
-        // --- Load Data Function ---
-        /** Fetches, validates, and initializes game data from a given URL. */
-        async function loadGameData(url) {
-            loadStatusEl.textContent = 'Loading...'; loadStatusEl.className = 'mt-2 text-sm status-loading'; loadDataBtn.disabled = true; resetUIState();
+
+        // --- Load Team Matches Functions ---
+        async function loadTeamMatches() {
+            const url = teamMatchesUrlInput.value.trim();
+            if (!url) {
+                setStatusMessage(teamLoadStatusEl, 'Please enter a Team Matches URL.', 'error');
+                return;
+            }
+            setStatusMessage(teamLoadStatusEl, 'Loading team matches...', 'loading');
+            loadTeamMatchesBtn.disabled = true;
+            matchListDisplayAreaEl.innerHTML = ''; // Clear previous list
+
             try {
-                let parsedUrl; try { parsedUrl = new URL(url); } catch (_) { throw new Error('Invalid URL format.'); }
-                if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') { throw new Error('URL must use http or https.'); }
-                // if (ALLOWED_HOSTNAME && parsedUrl.hostname !== ALLOWED_HOSTNAME) { throw new Error(`Data can only be loaded from ${ALLOWED_HOSTNAME}`); }
-                const response = await fetch(url); if (!response.ok) { throw new Error(`HTTP error! Status: ${response.status}`); } const data = await response.json();
-                if (!data?.match?.events || !Array.isArray(data.match.events)) { throw new Error('Invalid data: Missing "match.events" array.'); } if (!data?.match?.lineups || !Array.isArray(data.match.lineups)) { throw new Error('Invalid data: Missing "match.lineups" array.'); } if (!data?.match?.team_A_id || !data?.match?.team_B_id) { throw new Error('Invalid data: Missing team IDs.'); }
-                console.log("Data fetched and validated successfully"); loadedGameData = data; loadStatusEl.textContent = 'Game data loaded successfully!'; loadStatusEl.className = 'mt-2 text-sm status-success'; initializeGame();
-            } catch (error) { console.error('Error loading game data:', error); loadStatusEl.textContent = `Error: ${error.message}`; loadStatusEl.className = 'mt-2 text-sm status-error'; loadedGameData = null; resetUIState(); } finally { loadDataBtn.disabled = false; }
+                let parsedUrl;
+                try { parsedUrl = new URL(url); } catch (_) { throw new Error('Invalid URL format.'); }
+
+                // Optional: Hostname check (already in ALLOWED_HOSTNAME)
+                // if (ALLOWED_HOSTNAME && parsedUrl.hostname !== ALLOWED_HOSTNAME) {
+                // throw new Error(`Data can only be loaded from ${ALLOWED_HOSTNAME}`);
+                // }
+                if (!parsedUrl.pathname.includes('getMatches')) {
+                    throw new Error('URL does not appear to be a getMatches URL.');
+                }
+                if (!parsedUrl.searchParams.get('team_id')) {
+                     throw new Error('URL is missing the required team_id parameter.');
+                }
+
+                const response = await fetch(url);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                const data = await response.json();
+
+                if (!data?.matches || !Array.isArray(data.matches)) {
+                    throw new Error('Invalid response format: Missing "matches" array.');
+                }
+
+                displayMatchList(data.matches);
+                setStatusMessage(teamLoadStatusEl, `Found ${data.matches.length} matches. Select a game to load.`, 'success');
+
+            } catch (error) {
+                console.error('Error loading team matches:', error);
+                setStatusMessage(teamLoadStatusEl, `Error: ${error.message}`, 'error');
+                matchListDisplayAreaEl.innerHTML = '<p class="text-red-500">Could not load matches.</p>';
+            } finally {
+                loadTeamMatchesBtn.disabled = false;
+            }
+        }
+
+        function displayMatchList(matches) {
+            matchListDisplayAreaEl.innerHTML = ''; // Clear previous list
+            if (matches.length === 0) {
+                matchListDisplayAreaEl.innerHTML = '<p>No matches found for this team.</p>';
+                return;
+            }
+
+            const listTitle = document.createElement('h3');
+            listTitle.className = 'text-md font-semibold text-gray-700 mb-2';
+            listTitle.textContent = 'Select a Game to Replay:';
+            matchListDisplayAreaEl.appendChild(listTitle);
+
+            const ul = document.createElement('ul');
+            ul.className = 'space-y-2';
+
+            matches.forEach(match => {
+                const li = document.createElement('li');
+                li.className = 'match-list-item';
+                li.classList.add(match.status === 'Played' ? 'played' : 'not-played');
+
+                const dateStr = match.date ? new Date(match.date).toLocaleDateString() : 'No Date';
+                const score = (match.fs_A !== null && match.fs_B !== null) ? `(${match.fs_A} - ${match.fs_B})` : '';
+                
+                li.innerHTML = `
+                    <div class="font-medium">${match.team_A_name || 'Team A'} vs ${match.team_B_name || 'Team B'} ${score}</div>
+                    <div class="text-xs text-gray-500">${dateStr} - Status: ${match.status || 'Unknown'}</div>
+                `;
+
+                if (match.status === 'Played' && match.match_id) {
+                    li.title = `Click to load replay for match ID ${match.match_id}`;
+                    li.addEventListener('click', () => {
+                        const getMatchUrl = `${API_BASE_URL}getMatch?match_id=${match.match_id}`;
+                        gameUrlInput.value = getMatchUrl; // Populate the single game URL input
+                        loadGameData(getMatchUrl);       // Directly load the game
+                        // Optionally, scroll to the replay section or provide visual feedback
+                        replayUIContainerEl.scrollIntoView({ behavior: 'smooth' });
+                    });
+                } else {
+                    li.style.cursor = 'not-allowed';
+                    li.title = match.match_id ? 'This game is not marked as "Played".' : 'Match ID missing.';
+                }
+                ul.appendChild(li);
+            });
+            matchListDisplayAreaEl.appendChild(ul);
+        }
+
+
+        // --- Load Single Game Data Function (existing, slightly adapted) ---
+        async function loadGameData(url) {
+            setStatusMessage(loadStatusEl, 'Loading game data...', 'loading');
+            loadDataBtn.disabled = true;
+            teamLoadStatusEl.textContent = ''; // Clear team load status
+            resetUIState(); // Reset replay UI before loading new game
+
+            try {
+                let parsedUrl;
+                try { parsedUrl = new URL(url); } catch (_) { throw new Error('Invalid URL format.'); }
+
+                if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+                    throw new Error('URL must use http or https.');
+                }
+                // Optional Hostname Check
+                // if (ALLOWED_HOSTNAME && parsedUrl.hostname !== ALLOWED_HOSTNAME) {
+                // throw new Error(`Data can only be loaded from ${ALLOWED_HOSTNAME}`);
+                // }
+                if (!parsedUrl.searchParams.get('match_id')) {
+                     throw new Error('URL is missing the required match_id parameter for getMatch.');
+                }
+
+
+                const response = await fetch(url);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                const data = await response.json();
+
+                if (!data?.match?.events || !Array.isArray(data.match.events)) {
+                    throw new Error('Invalid game data: Missing "match.events" array.');
+                }
+                if (!data?.match?.lineups || !Array.isArray(data.match.lineups)) {
+                    throw new Error('Invalid game data: Missing "match.lineups" array.');
+                }
+                if (!data?.match?.team_A_id || !data?.match?.team_B_id) {
+                    throw new Error('Invalid game data: Missing team IDs.');
+                }
+
+                console.log("Game data fetched and validated successfully");
+                loadedGameData = data;
+                setStatusMessage(loadStatusEl, 'Game data loaded successfully!', 'success');
+                initializeGame(); // Initialize the replay with the new game data
+                replayUIContainerEl.classList.remove('opacity-50'); // Make replay UI visible
+
+            } catch (error) {
+                console.error('Error loading game data:', error);
+                setStatusMessage(loadStatusEl, `Error: ${error.message}`, 'error');
+                loadedGameData = null;
+                resetUIState(); // Ensure UI is reset on error
+            } finally {
+                loadDataBtn.disabled = false;
+            }
         }
 
         // --- Reset UI Function ---
-        /** Resets the UI elements to their initial (pre-load) state and disables controls. */
         function resetUIState() {
             pausePlayback();
-            scoreboardEl.classList.add('opacity-50'); matchInfoEl.classList.add('opacity-50'); courtAreaEl.classList.add('opacity-50'); statsAreaEl.classList.add('opacity-50');
-            prevEventBtn.disabled = true; playPauseBtn.disabled = true; playPauseBtn.textContent = 'Play'; nextEventBtn.disabled = true; skipToEndBtn.disabled = true;
-            eventDescEl.textContent = 'Load game data using the URL field above.';
-            setNumberEl.textContent = '-'; teamANameEl.textContent = 'Team A'; teamAPointsEl.textContent = '0'; teamASetsEl.textContent = '0'; teamBNameEl.textContent = 'Team B'; teamBPointsEl.textContent = '0'; teamBSetsEl.textContent = '0';
-            matchDateEl.textContent = 'Date'; matchTimeEl.textContent = 'Time'; matchVenueEl.textContent = 'Venue'; matchRefereeEl.textContent = 'Referee'; matchAttendanceEl.textContent = '0'; setElapsedTimeEl.textContent = '--:--';
+            // Only control opacity of the replay-specific UI parts
+            replayUIContainerEl.classList.add('opacity-50');
+
+            prevEventBtn.disabled = true;
+            playPauseBtn.disabled = true;
+            playPauseBtn.textContent = 'Play';
+            nextEventBtn.disabled = true;
+            skipToEndBtn.disabled = true;
+
+            eventDescEl.textContent = 'Load game data or select from a team list.';
+            setNumberEl.textContent = '-';
+            teamANameEl.textContent = 'Team A'; teamAPointsEl.textContent = '0'; teamASetsEl.textContent = '0';
+            teamBNameEl.textContent = 'Team B'; teamBPointsEl.textContent = '0'; teamBSetsEl.textContent = '0';
+            matchDateEl.textContent = 'Date'; matchTimeEl.textContent = 'Time'; matchVenueEl.textContent = 'Venue';
+            matchRefereeEl.textContent = 'Referee'; matchAttendanceEl.textContent = '0'; setElapsedTimeEl.textContent = '--:--';
             statsTeamANameEl.textContent = `Team A Stats`; statsTeamBNameEl.textContent = `Team B Stats`;
-            statsTeamATbody.innerHTML = ''; statsTeamATfoot.innerHTML = ''; statsTeamBTbody.innerHTML = ''; statsTeamBTfoot.innerHTML = '';
+            statsTeamATbody.innerHTML = ''; statsTeamATfoot.innerHTML = '';
+            statsTeamBTbody.innerHTML = ''; statsTeamBTfoot.innerHTML = '';
             document.querySelectorAll('.player-marker').forEach(marker => marker.remove());
+
+            // Clear game-specific state variables
+            loadedGameData = null;
+            currentEventIndex = -1;
+            sortedEvents = [];
+            gameHistory = [];
         }
 
 
         // --- Initialization Function ---
-        /** Initializes the game state and UI using the globally stored `loadedGameData`. */
         function initializeGame() {
             console.log("Initializing game with loaded data...");
-            if (!loadedGameData?.match) { console.error("Cannot initialize: No valid game data."); resetUIState(); return; }
-            pausePlayback();
+            if (!loadedGameData?.match) {
+                console.error("Cannot initialize: No valid game data.");
+                resetUIState();
+                return;
+            }
+            pausePlayback(); // Ensure playback is paused
+
             const matchData = loadedGameData.match;
-            teamAId = matchData.team_A_id; teamBId = matchData.team_B_id;
+            teamAId = matchData.team_A_id;
+            teamBId = matchData.team_B_id;
 
-            // Set Match Info Display
-            teamANameEl.textContent = matchData.team_A_name || 'Team A'; statsTeamANameEl.textContent = `${matchData.team_A_name || 'Team A'} Stats`; teamBNameEl.textContent = matchData.team_B_name || 'Team B'; statsTeamBNameEl.textContent = `${matchData.team_B_name || 'Team B'} Stats`;
-            matchDateEl.textContent = matchData.date || 'N/A'; matchTimeEl.textContent = matchData.time || 'N/A'; matchVenueEl.textContent = matchData.venue_name || 'N/A'; matchRefereeEl.textContent = matchData.referee_1_name || 'N/A'; matchAttendanceEl.textContent = matchData.attendance || '0';
+            teamANameEl.textContent = matchData.team_A_name || 'Team A';
+            statsTeamANameEl.textContent = `${matchData.team_A_name || 'Team A'} Stats`;
+            teamBNameEl.textContent = matchData.team_B_name || 'Team B';
+            statsTeamBNameEl.textContent = `${matchData.team_B_name || 'Team B'} Stats`;
 
-            // Calculate Initial Summary Stats
+            matchDateEl.textContent = matchData.date || 'N/A';
+            matchTimeEl.textContent = matchData.time || 'N/A';
+            matchVenueEl.textContent = matchData.venue_name || 'N/A';
+            matchRefereeEl.textContent = matchData.referee_1_name || 'N/A';
+            matchAttendanceEl.textContent = matchData.attendance || '0';
+
             teamATimeouts = 0; teamBTimeouts = 0; teamASubs = 0; teamBSubs = 0;
-            (matchData.events || []).forEach(event => { if (event.code === 'aikalisa') { if (event.team_id === teamAId) teamATimeouts++; else if (event.team_id === teamBId) teamBTimeouts++; } });
+            (matchData.events || []).forEach(event => {
+                if (event.code === 'aikalisa') {
+                    if (event.team_id === teamAId) teamATimeouts++;
+                    else if (event.team_id === teamBId) teamBTimeouts++;
+                }
+            });
             const subsEvents = matchData.substitution_events || (matchData.events || []).filter(e => e.code === 'vaihto');
-            subsEvents.forEach(sub => { if (sub.team_id === teamAId) teamASubs++; else if (sub.team_id === teamBId) teamBSubs++; });
+            subsEvents.forEach(sub => {
+                if (sub.team_id === teamAId) teamASubs++;
+                else if (sub.team_id === teamBId) teamBSubs++;
+            });
 
-            // Process Lineups & Initialize Player Stats Object
             playerStats = {};
             matchData.lineups.forEach(p => {
                 const playerIdStr = String(p.player_id);
                 if (playerIdStr && p.team_id && p.player_name && p.shirt_number !== undefined) {
                     playerStats[playerIdStr] = { name: p.player_name, shirt: p.shirt_number, team: p.team_id === teamAId ? 'A' : 'B', points: 0, serves: 0, isCaptain: p.captain === 'C' };
-                    // finalPlayerPoints removed
                 } else { console.warn("Skipping invalid lineup entry:", p); }
             });
 
-            // Sort Events
-            sortedEvents = [...matchData.events].sort((a, b) => { if (!a.wall_time || !b.wall_time) return 0; if (a.wall_time < b.wall_time) return -1; if (a.wall_time > b.wall_time) return 1; return 0; });
+            sortedEvents = [...matchData.events].sort((a, b) => {
+                if (!a.wall_time || !b.wall_time) return 0;
+                if (a.wall_time < b.wall_time) return -1;
+                if (a.wall_time > b.wall_time) return 1;
+                return 0;
+            });
             sortedEvents.unshift({ code: "startgame", period: "0", wall_time: "00:00:00", code_fi: "Game Starting", description: "" });
 
-            // Reset State Variables
-            currentEventIndex = -1; currentSet = 0; teamAPoints = 0; teamBPoints = 0; teamASets = 0; teamBSets = 0; servingTeam = null; lastServingTeam = null; playerPositionsA = {}; playerPositionsB = {}; teamAImpliedOpponentErrors = 0; teamBImpliedOpponentErrors = 0; currentSetStartTime = null; gameHistory = [];
+            currentEventIndex = -1; currentSet = 0; teamAPoints = 0; teamBPoints = 0; teamASets = 0; teamBSets = 0;
+            servingTeam = null; lastServingTeam = null; playerPositionsA = {}; playerPositionsB = {};
+            teamAImpliedOpponentErrors = 0; teamBImpliedOpponentErrors = 0; currentSetStartTime = null; gameHistory = [];
 
-            // Update UI
-            scoreboardEl.classList.remove('opacity-50'); matchInfoEl.classList.remove('opacity-50'); courtAreaEl.classList.remove('opacity-50'); statsAreaEl.classList.remove('opacity-50');
-            displayEvent(0); saveState(); updateStatsTable(); updateSetElapsedTimeUI(null);
+            replayUIContainerEl.classList.remove('opacity-50'); // Ensure replay UI is fully visible
+            displayEvent(0); // Display the "startgame" event
+            saveState();
+            updateStatsTable();
+            updateSetElapsedTimeUI(null);
             console.log("Initialization complete.");
         }
 
         // --- Playback Control ---
-        // ... (playPlayback and pausePlayback functions remain the same) ...
-         function playPlayback() { if (!loadedGameData || isPlaying || currentEventIndex >= sortedEvents.length - 1) return; isPlaying = true; playPauseBtn.textContent = 'Pause'; playPauseBtn.classList.remove('bg-green-500', 'hover:bg-green-600'); playPauseBtn.classList.add('bg-yellow-500', 'hover:bg-yellow-600'); prevEventBtn.disabled = true; nextEventBtn.disabled = true; skipToEndBtn.disabled = true; const advanceStep = () => { if (currentEventIndex < sortedEvents.length - 1) { displayEvent(currentEventIndex + 1, false); const currentEventCode = sortedEvents[currentEventIndex]?.code; if (currentEventCode === 'lopetaottelu') { pausePlayback(); } } else { pausePlayback(); } }; advanceStep(); if (isPlaying) { playIntervalId = setInterval(advanceStep, playbackSpeed); } }
+        function playPlayback() { if (!loadedGameData || isPlaying || currentEventIndex >= sortedEvents.length - 1) return; isPlaying = true; playPauseBtn.textContent = 'Pause'; playPauseBtn.classList.remove('bg-green-500', 'hover:bg-green-600'); playPauseBtn.classList.add('bg-yellow-500', 'hover:bg-yellow-600'); prevEventBtn.disabled = true; nextEventBtn.disabled = true; skipToEndBtn.disabled = true; const advanceStep = () => { if (currentEventIndex < sortedEvents.length - 1) { displayEvent(currentEventIndex + 1, false); const currentEventCode = sortedEvents[currentEventIndex]?.code; if (currentEventCode === 'lopetaottelu') { pausePlayback(); } } else { pausePlayback(); } }; advanceStep(); if (isPlaying) { playIntervalId = setInterval(advanceStep, playbackSpeed); } }
         function pausePlayback() { if (!isPlaying && !playIntervalId) return; isPlaying = false; if (playIntervalId) { clearInterval(playIntervalId); playIntervalId = null; } playPauseBtn.textContent = 'Play'; playPauseBtn.classList.remove('bg-yellow-500', 'hover:bg-yellow-600'); playPauseBtn.classList.add('bg-green-500', 'hover:bg-green-600'); if(loadedGameData) { const isEnd = currentEventIndex >= sortedEvents.length - 1 || sortedEvents[currentEventIndex]?.code === 'lopetaottelu'; prevEventBtn.disabled = currentEventIndex <= 0; nextEventBtn.disabled = isEnd; playPauseBtn.disabled = isEnd; skipToEndBtn.disabled = isEnd; } else { prevEventBtn.disabled = true; nextEventBtn.disabled = true; playPauseBtn.disabled = true; skipToEndBtn.disabled = true; } }
 
         // --- State Management for Previous Button ---
-        // ... (saveState and restoreState functions updated to remove finalPlayerPoints) ...
-         function saveState() {
+        function saveState() {
              if (!loadedGameData) return; const state = { index: currentEventIndex, set: currentSet, pointsA: teamAPoints, pointsB: teamBPoints, setsA: teamASets, setsB: teamBSets, serving: servingTeam, lastServing: lastServingTeam, posA: JSON.parse(JSON.stringify(playerPositionsA)), posB: JSON.parse(JSON.stringify(playerPositionsB)), stats: JSON.parse(JSON.stringify(playerStats)), errorsA: teamAImpliedOpponentErrors, errorsB: teamBImpliedOpponentErrors, setStartTime: currentSetStartTime }; if (gameHistory.length === 0 || gameHistory[gameHistory.length - 1].index !== state.index) { gameHistory.push(state); }
         }
         function restoreState(state) {
             if (!loadedGameData || !state) return; currentEventIndex = state.index; currentSet = state.set; teamAPoints = state.pointsA; teamBPoints = state.pointsB; teamASets = state.setsA; teamBSets = state.setsB; servingTeam = state.serving; lastServingTeam = state.lastServing; playerPositionsA = JSON.parse(JSON.stringify(state.posA)); playerPositionsB = JSON.parse(JSON.stringify(state.posB)); playerStats = JSON.parse(JSON.stringify(state.stats)); teamAImpliedOpponentErrors = state.errorsA; teamBImpliedOpponentErrors = state.errorsB; currentSetStartTime = state.setStartTime; const event = sortedEvents[currentEventIndex]; eventDescEl.textContent = event?.code_fi || event?.code || "State Restored"; updateScoreboard(); drawCourt(); updateStatsTable(); updateSetElapsedTimeUI(event?.wall_time); pausePlayback();
         }
 
-
         // --- Rotation Logic ---
-        // ... (rotateTeam remains the same) ...
         function rotateTeam(teamId) { const currentPositions = teamId === 'A' ? playerPositionsA : playerPositionsB; const newPositions = {}; newPositions[1] = currentPositions[2]; newPositions[6] = currentPositions[1]; newPositions[5] = currentPositions[6]; newPositions[4] = currentPositions[5]; newPositions[3] = currentPositions[4]; newPositions[2] = currentPositions[3]; for (let zone = 1; zone <= 6; zone++) { if (teamId === 'A') playerPositionsA[zone] = newPositions[zone] || null; else playerPositionsB[zone] = newPositions[zone] || null; } }
 
         // --- Set Starting Lineup ---
-        // ... (setStartingLineup remains the same) ...
         function setStartingLineup(setNumber) { playerPositionsA = {}; playerPositionsB = {}; if (!loadedGameData?.match?.lineups) return; loadedGameData.match.lineups.forEach(p => { const playerIdStr = String(p.player_id); if (p.playing_position?.[setNumber]) { const zone = p.playing_position[setNumber]; if (zone >= 1 && zone <= 6) { if (p.team_id === teamAId) playerPositionsA[zone] = playerIdStr; else playerPositionsB[zone] = playerIdStr; } } }); }
 
         // --- Update UI Functions ---
-        /** Updates the scoreboard display. */
         function updateScoreboard() { setNumberEl.textContent = currentSet > 0 ? currentSet : '-'; teamAPointsEl.textContent = teamAPoints; teamBPointsEl.textContent = teamBPoints; teamASetsEl.textContent = teamASets; teamBSetsEl.textContent = teamBSets; }
-
-        /** Redraws the player markers on the court. */
         function drawCourt() { document.querySelectorAll('.player-marker').forEach(marker => marker.remove()); const drawMarkers = (positions, teamClass) => { for (const zone in positions) { const playerId = positions[zone]; if (playerId && playerStats[playerId]) { const zoneEl = document.getElementById(`zone-${teamClass}-${zone}`); if (zoneEl) { const marker = document.createElement('div'); marker.classList.add('player-marker'); marker.classList.add(teamClass === 'a' ? 'team-a' : 'team-b'); marker.dataset.playerId = playerId; marker.textContent = playerStats[playerId].shirt; marker.title = playerStats[playerId].name; if ((servingTeam === 'A' && teamClass === 'a' && parseInt(zone) === 1) || (servingTeam === 'B' && teamClass === 'b' && parseInt(zone) === 1)) { marker.classList.add('serving'); } zoneEl.appendChild(marker); } } } }; drawMarkers(playerPositionsA, 'a'); drawMarkers(playerPositionsB, 'b'); }
-
-        /** Updates the player statistics tables, including summary rows. */
-         function updateStatsTable() {
+        function updateStatsTable() {
             statsTeamATbody.innerHTML = ''; statsTeamATfoot.innerHTML = '';
             statsTeamBTbody.innerHTML = ''; statsTeamBTfoot.innerHTML = '';
-
-            // Populate player rows
             Object.entries(playerStats)
-                  .filter(([, stats]) => stats.shirt)
+                  .filter(([, stats]) => stats.shirt) // Ensure player has a shirt number
                   .sort(([,a],[,b]) => parseInt(a.shirt) - parseInt(b.shirt))
                   .forEach(([playerId, stats]) => {
                     const row = document.createElement('tr');
-                    const captainMark = stats.isCaptain ? ' (C)' : ''; // Add captain mark
-                    // Display running points and serves, removed final points column
+                    const captainMark = stats.isCaptain ? ' (C)' : '';
                     row.innerHTML = `
                         <td>${stats.shirt}</td>
                         <td>${stats.name}${captainMark}</td>
@@ -358,15 +575,12 @@
                     if (stats.team === 'A') statsTeamATbody.appendChild(row);
                     else statsTeamBTbody.appendChild(row);
             });
-
-            // Add Summary Rows to Footer (Adjust colspan)
             const errorRowA = document.createElement('tr'); errorRowA.classList.add('summary-row');
             errorRowA.innerHTML = `<td colspan="2">Opponent Errors (Implied)</td><td>${teamAImpliedOpponentErrors}</td><td>-</td>`; statsTeamATfoot.appendChild(errorRowA);
             const subsRowA = document.createElement('tr'); subsRowA.classList.add('summary-row');
             subsRowA.innerHTML = `<td colspan="2">Total Substitutions</td><td>${teamASubs}</td><td>-</td>`; statsTeamATfoot.appendChild(subsRowA);
             const timeoutRowA = document.createElement('tr'); timeoutRowA.classList.add('summary-row');
             timeoutRowA.innerHTML = `<td colspan="2">Timeouts Used</td><td>${teamATimeouts}</td><td>-</td>`; statsTeamATfoot.appendChild(timeoutRowA);
-
             const errorRowB = document.createElement('tr'); errorRowB.classList.add('summary-row');
             errorRowB.innerHTML = `<td colspan="2">Opponent Errors (Implied)</td><td>${teamBImpliedOpponentErrors}</td><td>-</td>`; statsTeamBTfoot.appendChild(errorRowB);
             const subsRowB = document.createElement('tr'); subsRowB.classList.add('summary-row');
@@ -374,39 +588,32 @@
             const timeoutRowB = document.createElement('tr'); timeoutRowB.classList.add('summary-row');
             timeoutRowB.innerHTML = `<td colspan="2">Timeouts Used</td><td>${teamBTimeouts}</td><td>-</td>`; statsTeamBTfoot.appendChild(timeoutRowB);
         }
-
-        /** Updates the set elapsed time display. */
         function updateSetElapsedTimeUI(currentEventTimeStr) { if (currentSetStartTime && currentEventTimeStr) { const startSeconds = parseTimeToSeconds(currentSetStartTime); const currentSeconds = parseTimeToSeconds(currentEventTimeStr); if (startSeconds !== null && currentSeconds !== null && currentSeconds >= startSeconds) { const elapsedSeconds = currentSeconds - startSeconds; setElapsedTimeEl.textContent = formatSecondsToMMSS(elapsedSeconds); } else { setElapsedTimeEl.textContent = "--:--"; } } else { setElapsedTimeEl.textContent = "00:00"; } }
 
         // --- Highlight Functions ---
-        // ... (highlightPointScorer and highlightLostPointSide functions remain the same) ...
-         function highlightPointScorer(playerId) { if (pointScorerHighlightTimeout) clearTimeout(pointScorerHighlightTimeout); document.querySelectorAll('.player-marker.point-scorer').forEach(el => el.classList.remove('point-scorer')); if (!playerId || !playerStats[playerId]) return; const scorerMarker = document.querySelector(`.player-marker[data-player-id="${playerId}"]`); if (scorerMarker) { scorerMarker.classList.add('point-scorer'); pointScorerHighlightTimeout = setTimeout(() => { scorerMarker.classList.remove('point-scorer'); pointScorerHighlightTimeout = null; }, 1500); } }
+        function highlightPointScorer(playerId) { if (pointScorerHighlightTimeout) clearTimeout(pointScorerHighlightTimeout); document.querySelectorAll('.player-marker.point-scorer').forEach(el => el.classList.remove('point-scorer')); if (!playerId || !playerStats[playerId]) return; const scorerMarker = document.querySelector(`.player-marker[data-player-id="${playerId}"]`); if (scorerMarker) { scorerMarker.classList.add('point-scorer'); pointScorerHighlightTimeout = setTimeout(() => { scorerMarker.classList.remove('point-scorer'); pointScorerHighlightTimeout = null; }, 1500); } }
         function highlightLostPointSide(losingTeamId) { if (lostPointHighlightTimeout) clearTimeout(lostPointHighlightTimeout); courtSideAEl.classList.remove('lost-point-highlight'); courtSideBEl.classList.remove('lost-point-highlight'); const targetSideEl = losingTeamId === 'A' ? courtSideAEl : courtSideBEl; if (targetSideEl) { targetSideEl.classList.add('lost-point-highlight'); lostPointHighlightTimeout = setTimeout(() => { targetSideEl.classList.remove('lost-point-highlight'); lostPointHighlightTimeout = null; }, 800); } }
 
-
         // --- Process Single Event for State Update (No UI) ---
-        /** Updates the core game state variables based on a single event, without updating the UI. */
         function processEventForStateUpdate(event) {
              let needsRotation = null; let pointScoredBy = null; let scorerPlayerId = null;
              if (event.period && parseInt(event.period) > 0 && parseInt(event.period) !== currentSet) { if (event.code !== 'maali') { currentSet = parseInt(event.period); teamAPoints = 0; teamBPoints = 0; setStartingLineup(currentSet); currentSetStartTime = event.wall_time; } }
              switch (event.code) {
                  case 'aloitajakso': currentSet = parseInt(event.period); teamAPoints = 0; teamBPoints = 0; setStartingLineup(currentSet); servingTeam = null; lastServingTeam = null; currentSetStartTime = event.wall_time; break;
                  case 'aloittavajoukkue': servingTeam = event.team_id === teamAId ? 'A' : 'B'; lastServingTeam = servingTeam; const serverPlayerIdStart = servingTeam === 'A' ? playerPositionsA[1] : playerPositionsB[1]; if (serverPlayerIdStart && playerStats[serverPlayerIdStart]) { playerStats[serverPlayerIdStart].serves++; } break;
-                 case 'piste': const scoreMatch = event.description.match(/(\d+)-(\d+)/); if (scoreMatch) { const currentPointsA = teamAPoints; const currentPointsB = teamBPoints; const newPointsA = parseInt(scoreMatch[1]); const newPointsB = parseInt(scoreMatch[2]); pointScoredBy = (newPointsA > currentPointsA) ? 'A' : 'B'; teamAPoints = newPointsA; teamBPoints = newPointsB; if (event.player_id && String(event.player_id) !== '1') { scorerPlayerId = String(event.player_id); if(playerStats[scorerPlayerId]) { playerStats[scorerPlayerId].points++; } } else { if (pointScoredBy === 'A') teamAImpliedOpponentErrors++; else teamBImpliedOpponentErrors++; } if (servingTeam && pointScoredBy !== servingTeam) { needsRotation = pointScoredBy; } servingTeam = pointScoredBy; if (lastServingTeam === servingTeam && lastServingTeam !== null) { const serverPlayerIdHold = servingTeam === 'A' ? playerPositionsA[1] : playerPositionsB[1]; if (serverPlayerIdHold && playerStats[serverPlayerIdHold]) { playerStats[serverPlayerIdHold].serves++; } } lastServingTeam = servingTeam; } break;
-                 case 'maali': const setScoreMatch = event.description.match(/(\d+)-(\d+)/); if (setScoreMatch) { teamASets = parseInt(setScoreMatch[1]); teamBSets = parseInt(setScoreMatch[2]); } servingTeam = null; lastServingTeam = null; currentSetStartTime = null; break;
+                 case 'piste': const scoreMatch = event.description?.match(/(\d+)-(\d+)/); if (scoreMatch) { const currentPointsA = teamAPoints; const currentPointsB = teamBPoints; const newPointsA = parseInt(scoreMatch[1]); const newPointsB = parseInt(scoreMatch[2]); pointScoredBy = (newPointsA > currentPointsA) ? 'A' : 'B'; teamAPoints = newPointsA; teamBPoints = newPointsB; if (event.player_id && String(event.player_id) !== '1') { scorerPlayerId = String(event.player_id); if(playerStats[scorerPlayerId]) { playerStats[scorerPlayerId].points++; } } else { if (pointScoredBy === 'A') teamAImpliedOpponentErrors++; else teamBImpliedOpponentErrors++; } if (servingTeam && pointScoredBy !== servingTeam) { needsRotation = pointScoredBy; } servingTeam = pointScoredBy; if (lastServingTeam === servingTeam && lastServingTeam !== null) { const serverPlayerIdHold = servingTeam === 'A' ? playerPositionsA[1] : playerPositionsB[1]; if (serverPlayerIdHold && playerStats[serverPlayerIdHold]) { playerStats[serverPlayerIdHold].serves++; } } lastServingTeam = servingTeam; } break;
+                 case 'maali': const setScoreMatch = event.description?.match(/(\d+)-(\d+)/); if (setScoreMatch) { teamASets = parseInt(setScoreMatch[1]); teamBSets = parseInt(setScoreMatch[2]); } servingTeam = null; lastServingTeam = null; currentSetStartTime = null; break;
                  case 'lopetaottelu': currentSetStartTime = null; break;
              }
              if (needsRotation) { rotateTeam(needsRotation); const serverPlayerIdRotated = needsRotation === 'A' ? playerPositionsA[1] : playerPositionsB[1]; if (serverPlayerIdRotated && playerStats[serverPlayerIdRotated]) { playerStats[serverPlayerIdRotated].serves++; } }
         }
 
-
         // --- Main Event Display Function (Handles UI) ---
-        /** Processes a single event, updates the state (if not restoring), and updates the entire UI. */
         function displayEvent(index, isRestoring = false) {
              if (!loadedGameData || index < 0 || index >= sortedEvents.length) return;
             const event = sortedEvents[index]; console.log("Displaying Event:", index, event);
              let scorerPlayerId = null; let lostPointSide = null;
-             if (event.code === 'piste') { const scoreMatch = event.description.match(/(\d+)-(\d+)/); if (scoreMatch) { const refPointsA = isRestoring ? gameHistory[gameHistory.length-1]?.pointsA : teamAPoints; const refPointsB = isRestoring ? gameHistory[gameHistory.length-1]?.pointsB : teamBPoints; const pointScoredByTeam = (parseInt(scoreMatch[1]) > refPointsA) ? 'A' : 'B'; if (event.player_id && String(event.player_id) !== '1') { scorerPlayerId = String(event.player_id); } else { lostPointSide = pointScoredByTeam === 'A' ? 'B' : 'A'; } } }
+             if (event.code === 'piste') { const scoreMatch = event.description?.match(/(\d+)-(\d+)/); if (scoreMatch) { const refPointsA = isRestoring ? gameHistory[gameHistory.length-1]?.pointsA : teamAPoints; const refPointsB = isRestoring ? gameHistory[gameHistory.length-1]?.pointsB : teamBPoints; const pointScoredByTeam = (parseInt(scoreMatch[1]) > refPointsA) ? 'A' : 'B'; if (event.player_id && String(event.player_id) !== '1') { scorerPlayerId = String(event.player_id); } else { lostPointSide = pointScoredByTeam === 'A' ? 'B' : 'A'; } } }
              if (!isRestoring) { if (currentEventIndex >= 0) { saveState(); } processEventForStateUpdate(event); }
              currentEventIndex = index;
             eventDescEl.textContent = event?.code_fi || event?.code || "Event"; updateScoreboard(); drawCourt(); updateSetElapsedTimeUI(event.wall_time);
@@ -416,14 +623,22 @@
         }
 
         // --- Event Listeners ---
-        loadDataBtn.addEventListener('click', () => { const url = gameUrlInput.value.trim(); if (url) { loadGameData(url); } else { loadStatusEl.textContent = 'Please enter a URL.'; loadStatusEl.className = 'mt-2 text-sm status-error'; } });
+        // For Team Matches
+        loadTeamMatchesBtn.addEventListener('click', loadTeamMatches);
+
+        // For Single Game Replay (existing)
+        loadDataBtn.addEventListener('click', () => { const url = gameUrlInput.value.trim(); if (url) { loadGameData(url); } else { setStatusMessage(loadStatusEl, 'Please enter a Game Data URL.', 'error'); } });
         playPauseBtn.addEventListener('click', () => { if (isPlaying) { pausePlayback(); } else { playPlayback(); } });
         nextEventBtn.addEventListener('click', () => { pausePlayback(); if (loadedGameData && currentEventIndex < sortedEvents.length - 1) { displayEvent(currentEventIndex + 1, false); } });
         prevEventBtn.addEventListener('click', () => { pausePlayback(); if (loadedGameData && gameHistory.length > 0) { const prevState = gameHistory.pop(); if (prevState) { console.log("Restoring previous state:", prevState); restoreState(prevState); } } else if (loadedGameData && currentEventIndex > 0){ console.warn("History empty, re-initializing."); initializeGame(); } });
-        skipToEndBtn.addEventListener('click', () => { if (!loadedGameData || currentEventIndex >= sortedEvents.length - 1) return; console.log("Skipping to end..."); pausePlayback(); prevEventBtn.disabled = true; playPauseBtn.disabled = true; nextEventBtn.disabled = true; skipToEndBtn.disabled = true; loadStatusEl.textContent = 'Calculating final state...'; loadStatusEl.className = 'mt-2 text-sm status-loading'; setTimeout(() => { saveState(); for (let i = currentEventIndex + 1; i < sortedEvents.length; i++) { processEventForStateUpdate(sortedEvents[i]); } currentEventIndex = sortedEvents.length - 1; const finalEvent = sortedEvents[currentEventIndex]; eventDescEl.textContent = finalEvent?.code === 'lopetaottelu' ? "Game Finished" : (finalEvent?.code_fi || finalEvent?.code || "Game End"); updateScoreboard(); drawCourt(); updateStatsTable(); updateSetElapsedTimeUI(finalEvent?.wall_time); prevEventBtn.disabled = false; nextEventBtn.disabled = true; playPauseBtn.disabled = true; skipToEndBtn.disabled = true; loadStatusEl.textContent = 'Skipped to end.'; loadStatusEl.className = 'mt-2 text-sm status-success'; setTimeout(() => { if(loadStatusEl.textContent === 'Skipped to end.') loadStatusEl.textContent = '';}, 2000); console.log("Finished skipping to end."); saveState(); }, 50); });
+        skipToEndBtn.addEventListener('click', () => { if (!loadedGameData || currentEventIndex >= sortedEvents.length - 1) return; console.log("Skipping to end..."); pausePlayback(); prevEventBtn.disabled = true; playPauseBtn.disabled = true; nextEventBtn.disabled = true; skipToEndBtn.disabled = true; setStatusMessage(loadStatusEl, 'Calculating final state...', 'loading'); setTimeout(() => { saveState(); for (let i = currentEventIndex + 1; i < sortedEvents.length; i++) { processEventForStateUpdate(sortedEvents[i]); } currentEventIndex = sortedEvents.length - 1; const finalEvent = sortedEvents[currentEventIndex]; eventDescEl.textContent = finalEvent?.code === 'lopetaottelu' ? "Game Finished" : (finalEvent?.code_fi || finalEvent?.code || "Game End"); updateScoreboard(); drawCourt(); updateStatsTable(); updateSetElapsedTimeUI(finalEvent?.wall_time); prevEventBtn.disabled = false; nextEventBtn.disabled = true; playPauseBtn.disabled = true; skipToEndBtn.disabled = true; setStatusMessage(loadStatusEl, 'Skipped to end.', 'success'); setTimeout(() => { if(loadStatusEl.textContent === 'Skipped to end.') loadStatusEl.textContent = '';}, 2000); console.log("Finished skipping to end."); saveState(); }, 50); });
 
         // --- Initial Load ---
-         document.addEventListener('DOMContentLoaded', resetUIState); // Start in reset state
+         document.addEventListener('DOMContentLoaded', () => {
+            resetUIState(); // Start in reset state for the replay UI
+            setStatusMessage(teamLoadStatusEl, 'Enter a team URL to list matches.', 'info');
+            setStatusMessage(loadStatusEl, 'Enter a game URL or select from a team list.', 'info');
+         });
 
     </script>
 
