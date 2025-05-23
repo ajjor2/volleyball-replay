@@ -310,7 +310,7 @@
             const fragment = document.createDocumentFragment();
 
             matches.forEach(match => {
-                const { match_id, date, status } = match;
+                const { match_id, date, home_team_name, away_team_name, status } = match;
                 const matchItemDiv = document.createElement('div');
                 matchItemDiv.className = 'p-3 mb-2 border rounded-md bg-white shadow-sm';
 
@@ -322,7 +322,7 @@
 
                 const teamsEl = document.createElement('h4');
                 teamsEl.className = 'font-semibold text-gray-800';
-                teamsEl.textContent = `${match.team_A_name || 'Home Team'} vs ${match.team_B_name || 'Away Team'}`;
+                teamsEl.textContent = `${home_team_name} vs ${away_team_name}`;
                 
                 const statusEl = document.createElement('p');
                 statusEl.className = 'text-sm';
