@@ -116,11 +116,21 @@
             stroke-width: 1;
             stroke-dasharray: 2,2; /* Dashed line for grid */
         }
-        /* Rally Stats Summary Table */
+        /* Rally Stats Summary Table & Advanced Stats Tables */
         #rally-stats-summary-table th, #rally-stats-summary-table td,
-        #player-scored-rally-stats-table th, #player-scored-rally-stats-table td { /* Apply to both tables */
+        #player-scored-rally-stats-table th, #player-scored-rally-stats-table td,
+        .advanced-stats-table th, .advanced-stats-table td { /* Apply to all stats tables */
             padding: 0.3rem 0.5rem;
             font-size: 0.8rem;
+        }
+        .advanced-stats-section h5 {
+            font-size: 1rem; /* text-base */
+            font-weight: 600; /* semibold */
+            color: #374151; /* gray-700 */
+            margin-top: 0.75rem; /* mt-3 */
+            margin-bottom: 0.5rem; /* mb-2 */
+            padding-bottom: 0.25rem; /* pb-1 */
+            border-bottom: 1px solid #e5e7eb; /* gray-200 */
         }
     </style>
 </head>
@@ -189,7 +199,7 @@
                 </div>
             </div>
 
-             <div id="all-rallies-duration-chart-area" class="mt-8 mb-2 opacity-50">
+            <div id="all-rallies-duration-chart-area" class="mt-8 mb-2 opacity-50">
                 <h3 class="text-xl font-semibold mb-3 text-center text-gray-700">All Rallies: Durations (seconds)</h3>
                 <div id="all-rallies-duration-visualization" class="rally-chart-visualization p-4 border border-gray-300 rounded-md bg-gray-50 min-h-[280px]">
                     <p class="text-center text-gray-500">Rally duration chart will appear here once a game is loaded.</p>
@@ -203,14 +213,14 @@
                  </div>
             </div>
 
-            <div id="player-scored-rallies-duration-chart-area" class="mt-8 mb-2 opacity-50">
-                <h3 class="text-xl font-semibold mb-3 text-center text-gray-700">Player-Scored Rallies: Durations (seconds)</h3>
+            <div id="player-scored-rallies-duration-chart-area" class="mt-4 mb-2 opacity-50"> <h3 class="text-xl font-semibold mb-3 text-center text-gray-700">Player-Scored Rallies: Durations (seconds)</h3>
                 <div id="player-scored-rallies-duration-visualization" class="rally-chart-visualization p-4 border border-gray-300 rounded-md bg-gray-50 min-h-[280px]">
                     <p class="text-center text-gray-500">Player-scored rally duration chart will appear here.</p>
                 </div>
             </div>
             
-            <div id="player-scored-rally-stats-summary-area" class="mt-0 mb-6 opacity-50"> <h4 class="text-lg font-semibold mb-2 text-center text-gray-600">Player-Scored Rallies: Length Analysis</h4>
+            <div id="player-scored-rally-stats-summary-area" class="mt-0 mb-6 opacity-50"> 
+                 <h4 class="text-lg font-semibold mb-2 text-center text-gray-600">Player-Scored Rallies: Length Analysis</h4>
                  <div id="player-scored-rally-stats-summary-content" class="p-3 border border-gray-200 rounded-md bg-gray-50 text-sm">
                      <p class="text-center text-gray-500">Statistics for rallies scored by a specific player will appear here.</p>
                  </div>
@@ -258,74 +268,81 @@
                     </table>
                 </div>
             </div>
+        </div> 
+        <div class="mt-8 text-center">
+            <button id="toggle-advanced-stats-btn" class="bg-gray-700 hover:bg-gray-800 text-white font-bold py-2 px-4 rounded-lg transition duration-150 ease-in-out" disabled>
+                Show Advanced Game Statistics
+            </button>
         </div>
 
-    </div>
+        <div id="advanced-stats-container" class="mt-6 border-t border-gray-300 pt-4" style="display: none;">
+            <h2 class="text-xl font-bold text-center mb-4 text-gray-800">Advanced Game Statistics</h2>
+            
+            <div id="advanced-set-summaries-section" class="advanced-stats-section mb-6">
+                <h5>Set Summaries</h5>
+                <div id="advanced-set-summaries-content"><p class="text-gray-400 italic text-center">Data will appear here.</p></div>
+            </div>
 
+            <div id="advanced-sideout-section" class="advanced-stats-section mb-6">
+                <h5>Overall Side-Out Percentages</h5>
+                <div id="advanced-sideout-content"><p class="text-gray-400 italic text-center">Data will appear here.</p></div>
+            </div>
+
+            <div id="advanced-pointruns-section" class="advanced-stats-section mb-6">
+                <h5>Longest Point Runs</h5>
+                <div id="advanced-pointruns-content"><p class="text-gray-400 italic text-center">Data will appear here.</p></div>
+            </div>
+            
+            <div id="advanced-player-points-set-section" class="advanced-stats-section mb-6">
+                <h5>Player Points Per Set</h5>
+                <div id="advanced-player-points-set-content"><p class="text-gray-400 italic text-center">Data will appear here.</p></div>
+            </div>
+            <div id="advanced-leadchanges-maxleads-section" class="advanced-stats-section mb-6">
+                <h5>Lead Changes & Max Leads Per Set</h5>
+                <div id="advanced-leadchanges-maxleads-content"><p class="text-gray-400 italic text-center">Data will appear here.</p></div>
+            </div>
+            <div id="advanced-timeout-performance-section" class="advanced-stats-section mb-6">
+                <h5>Performance After Timeouts</h5>
+                <div id="advanced-timeout-performance-content"><p class="text-gray-400 italic text-center">Data will appear here.</p></div>
+            </div>
+            <div id="advanced-serving-streaks-section" class="advanced-stats-section mb-6">
+                <h5>Longest Serving Streaks (Team Points)</h5>
+                <div id="advanced-serving-streaks-content"><p class="text-gray-400 italic text-center">Data will appear here.</p></div>
+            </div>
+            <div id="advanced-serve-receive-points-section" class="advanced-stats-section mb-6">
+                <h5>Points on Serve / Reception</h5>
+                <div id="advanced-serve-receive-points-content"><p class="text-gray-400 italic text-center">Data will appear here.</p></div>
+            </div>
+             <div id="advanced-avg-points-service-turn-section" class="advanced-stats-section mb-6">
+                <h5>Average Points per Service Turn</h5>
+                <div id="advanced-avg-points-service-turn-content"><p class="text-gray-400 italic text-center">Data will appear here.</p></div>
+            </div>
+        </div>
+
+
+    </div> 
     <script>
         // --- APPLICATION LOGIC ---
-
-        // --- Configuration ---
         const API_BASE_URL = "https://lentopallo-api.torneopal.net/taso/rest/";
         const ALLOWED_HOSTNAME = "lentopallo-api.torneopal.net";
         const playbackSpeed = 1500;
 
-        // --- DOM Elements Globals ---
-        const teamMatchesUrlInput = document.getElementById('team-matches-url');
-        const loadTeamMatchesBtn = document.getElementById('load-team-matches-btn');
-        const teamLoadStatusEl = document.getElementById('team-load-status');
-        const matchListDisplayAreaEl = document.getElementById('match-list-display-area');
-        const gameUrlInput = document.getElementById('game-url');
-        const loadDataBtn = document.getElementById('load-data-btn');
-        const loadStatusEl = document.getElementById('load-status');
-        const replayUIContainerEl = document.getElementById('replay-ui-container');
-        const scoreboardEl = document.getElementById('scoreboard');
-        const matchInfoEl = document.getElementById('match-info');
-        const matchDateEl = document.getElementById('match-date');
-        const matchTimeEl = document.getElementById('match-time');
-        const matchVenueEl = document.getElementById('match-venue');
-        const matchRefereeEl = document.getElementById('match-referee');
-        const matchAttendanceEl = document.getElementById('match-attendance');
-        const setElapsedTimeEl = document.getElementById('set-elapsed-time');
-        const courtAreaEl = document.getElementById('court-area');
+        let teamMatchesUrlInput, loadTeamMatchesBtn, teamLoadStatusEl, matchListDisplayAreaEl,
+            gameUrlInput, loadDataBtn, loadStatusEl, replayUIContainerEl, scoreboardEl, matchInfoEl,
+            matchDateEl, matchTimeEl, matchVenueEl, matchRefereeEl, matchAttendanceEl, setElapsedTimeEl,
+            courtAreaEl, allRalliesDurationChartAreaEl, allRalliesDurationVisualizationEl,
+            rallyStatsSummaryAreaEl, rallyStatsSummaryContentEl, playerScoredRalliesDurationChartAreaEl,
+            playerScoredRalliesDurationVisualizationEl, playerScoredRallyStatsSummaryAreaEl,
+            playerScoredRallyStatsSummaryContentEl, statsAreaEl, setNumberEl, teamANameEl,
+            teamAPointsEl, teamASetsEl, teamBNameEl, teamBPointsEl, teamBSetsEl, eventDescEl,
+            nextEventBtn, prevEventBtn, playPauseBtn, skipToEndBtn, statsTeamANameEl, statsTeamATbody,
+            statsTeamATfoot, statsTeamBNameEl, statsTeamBTbody, statsTeamBTfoot, courtSideAEl, courtSideBEl,
+            toggleAdvancedStatsBtn, advancedStatsContainerEl, advancedSetSummariesContentEl,
+            advancedSideoutContentEl, advancedPointrunsContentEl, advancedPlayerPointsSetContentEl,
+            advancedLeadChangesMaxLeadsContentEl, advancedTimeoutPerformanceContentEl, advancedServingStreaksContentEl,
+            advancedServeReceivePointsContentEl, advancedAvgPointsServiceTurnContentEl; 
         
-        const allRalliesDurationChartAreaEl = document.getElementById('all-rallies-duration-chart-area'); // Renamed
-        const allRalliesDurationVisualizationEl = document.getElementById('all-rallies-duration-visualization'); // Renamed
-        const rallyStatsSummaryAreaEl = document.getElementById('rally-stats-summary-area');
-        const rallyStatsSummaryContentEl = document.getElementById('rally-stats-summary-content');
-        
-        const playerScoredRalliesDurationChartAreaEl = document.getElementById('player-scored-rallies-duration-chart-area'); // New
-        const playerScoredRalliesDurationVisualizationEl = document.getElementById('player-scored-rallies-duration-visualization'); // New
-        const playerScoredRallyStatsSummaryAreaEl = document.getElementById('player-scored-rally-stats-summary-area'); 
-        const playerScoredRallyStatsSummaryContentEl = document.getElementById('player-scored-rally-stats-summary-content'); 
-        
-        const statsAreaEl = document.getElementById('stats-area');
-        const setNumberEl = document.getElementById('set-number');
-        const teamANameEl = document.getElementById('team-a-name');
-        const teamAPointsEl = document.getElementById('team-a-points');
-        const teamASetsEl = document.getElementById('team-a-sets');
-        const teamBNameEl = document.getElementById('team-b-name');
-        const teamBPointsEl = document.getElementById('team-b-points');
-        const teamBSetsEl = document.getElementById('team-b-sets');
-        const eventDescEl = document.getElementById('event-description');
-        const nextEventBtn = document.getElementById('next-event');
-        const prevEventBtn = document.getElementById('prev-event');
-        const playPauseBtn = document.getElementById('play-pause-btn');
-        const skipToEndBtn = document.getElementById('skip-to-end-btn');
-        const statsTeamANameEl = document.getElementById('stats-team-a-name');
-        const statsTeamATbody = document.querySelector('#stats-team-a tbody');
-        const statsTeamATfoot = document.querySelector('#stats-team-a tfoot');
-        const statsTeamBNameEl = document.getElementById('stats-team-b-name');
-        const statsTeamBTbody = document.querySelector('#stats-team-b tbody');
-        const statsTeamBTfoot = document.querySelector('#stats-team-b tfoot');
-        const courtSideAEl = document.getElementById('court-side-a');
-        const courtSideBEl = document.getElementById('court-side-b');
-
-        // --- Game State Globals ---
-        let loadedGameData = null;
-        let currentEventIndex = -1;
-        let sortedEvents = [];
-        let currentSet = 0;
+        let loadedGameData = null, currentEventIndex = -1, sortedEvents = [], currentSet = 0;
         let teamAPoints = 0, teamBPoints = 0, teamASets = 0, teamBSets = 0;
         let servingTeam = null, lastServingTeam = null;
         let playerPositionsA = {}, playerPositionsB = {};
@@ -337,154 +354,84 @@
         let pointScorerHighlightTimeout = null, lostPointHighlightTimeout = null;
         let gameHistory = [];
         let isPlaying = false, playIntervalId = null;
+        let currentGameAdvancedStats = null; 
+        let advancedStatsRendered = false; 
 
-        // --- Helper Functions ---
         function parseTimeToSeconds(timeString) { if (!timeString || typeof timeString !== 'string') return null; const parts = timeString.split(':'); if (parts.length === 3) { const h = parseInt(parts[0], 10); const m = parseInt(parts[1], 10); const s = parseInt(parts[2], 10); if (!isNaN(h) && !isNaN(m) && !isNaN(s)) { return h * 3600 + m * 60 + s; } } return null; }
         function formatSecondsToMMSS(totalSeconds) { if (totalSeconds === null || totalSeconds < 0 || isNaN(totalSeconds)) { return "--:--"; } const minutes = Math.floor(totalSeconds / 60); const seconds = Math.floor(totalSeconds % 60); const paddedMinutes = String(minutes).padStart(2, '0'); const paddedSeconds = String(seconds).padStart(2, '0'); return `${paddedMinutes}:${paddedSeconds}`; }
-        function setStatusMessage(element, message, type = 'info') { element.textContent = message; let className = 'mt-2 text-sm h-5 '; if (type === 'loading') className += 'status-loading'; else if (type === 'error') className += 'status-error'; else if (type === 'success') className += 'status-success'; element.className = className; }
+        function setStatusMessage(element, message, type = 'info') { if(element) {element.textContent = message; let className = 'mt-2 text-sm h-5 '; if (type === 'loading') className += 'status-loading'; else if (type === 'error') className += 'status-error'; else if (type === 'success') className += 'status-success'; element.className = className;} }
 
-        // --- Statistical Helper Functions ---
         function calculateMean(dataArray) { if (!dataArray || dataArray.length === 0) return 0; const sum = dataArray.reduce((acc, val) => acc + val, 0); return sum / dataArray.length; }
         function calculateMedian(dataArray) { if (!dataArray || dataArray.length === 0) return 0; const sorted = [...dataArray].sort((a, b) => a - b); const mid = Math.floor(sorted.length / 2); return sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2; }
         function calculateRange(dataArray) { if (!dataArray || dataArray.length === 0) return { min: 0, max: 0 }; return { min: Math.min(...dataArray), max: Math.max(...dataArray) }; }
         function calculateStandardDeviation(dataArray) { if (!dataArray || dataArray.length === 0) return 0; const mean = calculateMean(dataArray); const variance = dataArray.reduce((acc, val) => acc + Math.pow(val - mean, 2), 0) / dataArray.length; return Math.sqrt(variance); }
 
-        // --- Rally Duration Calculation ---
         function calculateRallyDurations(gameSortedEvents) {
-            const rallyDurations = [];
-            let lastRallyStartTimeSeconds = null;
-            let currentSetNumberForRally = 0;
-            let rallyInSetCounter = 0;
-            let setScoreA = 0;
-            let setScoreB = 0;
+            const rallyDurations = []; let lastRallyStartTimeSeconds = null; let currentSetNumberForRally = 0; let rallyInSetCounter = 0; let setScoreA = 0; let setScoreB = 0;
             for (const event of gameSortedEvents) {
-                const eventTimeSeconds = parseTimeToSeconds(event.wall_time);
-                if (eventTimeSeconds === null) continue;
+                const eventTimeSeconds = parseTimeToSeconds(event.wall_time); if (eventTimeSeconds === null) continue;
                 if (event.code === 'aloitajakso') {
-                    currentSetNumberForRally = parseInt(event.period);
-                    rallyInSetCounter = 0; setScoreA = 0; setScoreB = 0;
-                    lastRallyStartTimeSeconds = eventTimeSeconds;
+                    currentSetNumberForRally = parseInt(event.period); rallyInSetCounter = 0; setScoreA = 0; setScoreB = 0; lastRallyStartTimeSeconds = eventTimeSeconds;
                     const servingTeamEventForSet = gameSortedEvents.find(e => parseInt(e.period) === currentSetNumberForRally && e.code === 'aloittavajoukkue' && parseTimeToSeconds(e.wall_time) >= eventTimeSeconds);
                     if (servingTeamEventForSet) { const servingTime = parseTimeToSeconds(servingTeamEventForSet.wall_time); if (servingTime !== null) lastRallyStartTimeSeconds = servingTime; }
                 } else if (event.code === 'aloittavajoukkue' && currentSetNumberForRally > 0 && rallyInSetCounter === 0) {
-                     const aloittavaTimeSeconds = parseTimeToSeconds(event.wall_time);
-                     if (aloittavaTimeSeconds && (!lastRallyStartTimeSeconds || aloittavaTimeSeconds >= lastRallyStartTimeSeconds)) { lastRallyStartTimeSeconds = aloittavaTimeSeconds; }
+                     const aloittavaTimeSeconds = parseTimeToSeconds(event.wall_time); if (aloittavaTimeSeconds && (!lastRallyStartTimeSeconds || aloittavaTimeSeconds >= lastRallyStartTimeSeconds)) { lastRallyStartTimeSeconds = aloittavaTimeSeconds; }
                 } else if (event.code === 'piste' && currentSetNumberForRally > 0) {
                     if (lastRallyStartTimeSeconds !== null && eventTimeSeconds > lastRallyStartTimeSeconds) {
-                        const duration = eventTimeSeconds - lastRallyStartTimeSeconds;
-                        rallyInSetCounter++;
-                        let scoringTeamSymbol = null;
-                        const scoreMatch = event.description?.match(/(\d+)-(\d+)/);
-                        if (scoreMatch) { const newScoreA = parseInt(scoreMatch[1]); const newScoreB = parseInt(scoreMatch[2]); if (newScoreA > setScoreA) scoringTeamSymbol = 'A'; else if (newScoreB > setScoreB) scoringTeamSymbol = 'B'; setScoreA = newScoreA; setScoreB = newScoreB; }
-                        let rallyScorerPlayerId = null;
-                        if (event.player_id && String(event.player_id) !== '1') { rallyScorerPlayerId = String(event.player_id); }
+                        const duration = eventTimeSeconds - lastRallyStartTimeSeconds; rallyInSetCounter++; let scoringTeamSymbol = null;
+                        const scoreMatch = event.description?.match(/(\d+)-(\d+)/); if (scoreMatch) { const newScoreA = parseInt(scoreMatch[1]); const newScoreB = parseInt(scoreMatch[2]); if (newScoreA > setScoreA) scoringTeamSymbol = 'A'; else if (newScoreB > setScoreB) scoringTeamSymbol = 'B'; setScoreA = newScoreA; setScoreB = newScoreB; }
+                        let rallyScorerPlayerId = null; if (event.player_id && String(event.player_id) !== '1') { rallyScorerPlayerId = String(event.player_id); }
                         rallyDurations.push({ rallyOverallNumber: rallyDurations.length + 1, rallyInSetNumber: rallyInSetCounter, setNumber: currentSetNumberForRally, durationSeconds: duration, startTimeWallTime: lastRallyStartTimeSeconds ? formatSecondsToMMSS(lastRallyStartTimeSeconds % (24*3600)).replace(/^00:/, '') : "N/A", endTimeWallTime: event.wall_time, scoringTeam: scoringTeamSymbol, scorerPlayerId: rallyScorerPlayerId });
-                    }
-                    lastRallyStartTimeSeconds = eventTimeSeconds; 
+                    } lastRallyStartTimeSeconds = eventTimeSeconds; 
                 } else if (event.code === 'lopetaottelu') { break; }
-            }
-            return rallyDurations;
+            } return rallyDurations;
         }
 
-        // --- Generic Rally Duration Bar Chart Display Function ---
         function displayGenericRallyDurationBarChart(rallyDurations, targetVisualizationEl, chartTitle) {
             targetVisualizationEl.innerHTML = ''; 
-            if (!rallyDurations || rallyDurations.length === 0) {
-                targetVisualizationEl.innerHTML = `<p class="text-center text-gray-500">No rally data for "${chartTitle}".</p>`;
-                return;
-            }
+            if (!rallyDurations || rallyDurations.length === 0) { targetVisualizationEl.innerHTML = `<p class="text-center text-gray-500">No rally data for "${chartTitle}".</p>`; return; }
             const validRallies = rallyDurations.filter(r => r.durationSeconds > 0);
-            if (validRallies.length === 0) {
-                targetVisualizationEl.innerHTML = `<p class="text-center text-gray-500">No valid positive rally durations for "${chartTitle}".</p>`;
-                return;
-            }
-
+            if (validRallies.length === 0) { targetVisualizationEl.innerHTML = `<p class="text-center text-gray-500">No valid positive rally durations for "${chartTitle}".</p>`; return; }
             const maxDuration = Math.ceil(Math.max(...validRallies.map(r => r.durationSeconds)));
-            const chartHeight = 220; 
-            const xAxisLabelHeight = 30; 
-            const yAxisLabelWidth = 35; 
-            const chartAreaPaddingTop = 10; 
-            const totalSvgHeight = chartHeight + xAxisLabelHeight + chartAreaPaddingTop;
-            const barGap = 3; 
-            const minBarWidth = 5; 
-            const chartDrawableWidth = targetVisualizationEl.clientWidth - yAxisLabelWidth;
+            const chartHeight = 220; const xAxisLabelHeight = 30; const yAxisLabelWidth = 35; const chartAreaPaddingTop = 10; 
+            const totalSvgHeight = chartHeight + xAxisLabelHeight + chartAreaPaddingTop; const barGap = 3; const minBarWidth = 5; 
+            const chartDrawableWidth = targetVisualizationEl.clientWidth > yAxisLabelWidth ? targetVisualizationEl.clientWidth - yAxisLabelWidth : 200; 
             const calculatedBarWidth = Math.max(minBarWidth, (chartDrawableWidth - (validRallies.length * barGap)) / validRallies.length);
             const totalContentWidthBars = validRallies.length * (calculatedBarWidth + barGap);
             const totalSvgWidth = totalContentWidthBars + yAxisLabelWidth;
-
-            const svgNS = "http://www.w3.org/2000/svg";
-            const svg = document.createElementNS(svgNS, "svg");
-            svg.setAttribute("width", Math.max(targetVisualizationEl.clientWidth, totalSvgWidth)); 
-            svg.setAttribute("height", totalSvgHeight);
-            svg.style.display = "block";
-
+            const svgNS = "http://www.w3.org/2000/svg"; const svg = document.createElementNS(svgNS, "svg");
+            svg.setAttribute("width", Math.max(targetVisualizationEl.clientWidth, totalSvgWidth)); svg.setAttribute("height", totalSvgHeight); svg.style.display = "block";
             const numTicks = 5; 
             for (let i = 0; i <= numTicks; i++) {
-                const tickValue = (maxDuration / numTicks) * i;
-                const tickY = chartAreaPaddingTop + chartHeight - (tickValue / maxDuration) * chartHeight;
-                const textLabel = document.createElementNS(svgNS, "text");
-                textLabel.setAttribute("x", yAxisLabelWidth - 5); 
-                textLabel.setAttribute("y", tickY + 3); 
-                textLabel.classList.add("y-axis-label");
-                textLabel.textContent = `${Math.round(tickValue)}s`;
-                svg.appendChild(textLabel);
-                const gridLine = document.createElementNS(svgNS, "line");
-                gridLine.setAttribute("x1", yAxisLabelWidth);
-                gridLine.setAttribute("y1", tickY);
-                gridLine.setAttribute("x2", yAxisLabelWidth + totalContentWidthBars);
-                gridLine.setAttribute("y2", tickY);
-                gridLine.classList.add("y-axis-line");
-                svg.appendChild(gridLine);
+                const tickValue = (maxDuration / numTicks) * i; const tickY = chartAreaPaddingTop + chartHeight - (tickValue / maxDuration) * chartHeight;
+                const textLabel = document.createElementNS(svgNS, "text"); textLabel.setAttribute("x", yAxisLabelWidth - 5); textLabel.setAttribute("y", tickY + 3); textLabel.classList.add("y-axis-label"); textLabel.textContent = `${Math.round(tickValue)}s`; svg.appendChild(textLabel);
+                const gridLine = document.createElementNS(svgNS, "line"); gridLine.setAttribute("x1", yAxisLabelWidth); gridLine.setAttribute("y1", tickY); gridLine.setAttribute("x2", yAxisLabelWidth + totalContentWidthBars); gridLine.setAttribute("y2", tickY); gridLine.classList.add("y-axis-line"); svg.appendChild(gridLine);
             }
-            
             validRallies.forEach((rally, index) => {
-                const barHeight = maxDuration > 0 ? (rally.durationSeconds / maxDuration) * chartHeight : 0;
-                const x = yAxisLabelWidth + index * (calculatedBarWidth + barGap); 
-                const rect = document.createElementNS(svgNS, "rect");
-                rect.setAttribute("x", x);
-                rect.setAttribute("y", chartAreaPaddingTop + chartHeight - barHeight); 
-                rect.setAttribute("width", calculatedBarWidth);
-                rect.setAttribute("height", barHeight);
-                let barColor = "#9ca3af"; 
-                const isTeamAInfoAvailable = teamAId && Object.values(playerStats).some(p => p.team === 'A');
-                const isTeamBInfoAvailable = teamBId && Object.values(playerStats).some(p => p.team === 'B');
-                if (rally.scoringTeam === 'A' && isTeamAInfoAvailable) barColor = "#3b82f6";
-                else if (rally.scoringTeam === 'B' && isTeamBInfoAvailable) barColor = "#ef4444";
+                const barHeight = maxDuration > 0 ? (rally.durationSeconds / maxDuration) * chartHeight : 0; const x = yAxisLabelWidth + index * (calculatedBarWidth + barGap); 
+                const rect = document.createElementNS(svgNS, "rect"); rect.setAttribute("x", x); rect.setAttribute("y", chartAreaPaddingTop + chartHeight - barHeight); rect.setAttribute("width", calculatedBarWidth); rect.setAttribute("height", barHeight);
+                let barColor = "#9ca3af"; const isTeamAInfoAvailable = teamAId && playerStats && Object.values(playerStats).some(p => p.team === 'A'); const isTeamBInfoAvailable = teamBId && playerStats && Object.values(playerStats).some(p => p.team === 'B');
+                if (rally.scoringTeam === 'A' && isTeamAInfoAvailable) barColor = "#3b82f6"; else if (rally.scoringTeam === 'B' && isTeamBInfoAvailable) barColor = "#ef4444";
                 rect.setAttribute("fill", barColor);
-                const title = document.createElementNS(svgNS, "title");
-                title.textContent = `Rally ${rally.rallyOverallNumber} (Set ${rally.setNumber}, #${rally.rallyInSetNumber}): ${rally.durationSeconds.toFixed(1)}s. Scored by Team ${rally.scoringTeam || 'N/A'}${rally.scorerPlayerId && playerStats[rally.scorerPlayerId] ? ' (Player: ' + playerStats[rally.scorerPlayerId].name + ' #' + playerStats[rally.scorerPlayerId].shirt + ')' : ''}. End: ${rally.endTimeWallTime}`;
-                rect.appendChild(title);
-                svg.appendChild(rect);
-
-                if (calculatedBarWidth >= 15) {
-                    const xLabel = document.createElementNS(svgNS, "text");
-                    xLabel.setAttribute("x", x + calculatedBarWidth / 2);
-                    xLabel.setAttribute("y", chartAreaPaddingTop + chartHeight + 15); 
-                    xLabel.setAttribute("text-anchor", "middle");
-                    xLabel.setAttribute("font-size", "9px");
-                    xLabel.setAttribute("fill", "#4b5563"); 
-                    xLabel.textContent = `${rally.rallyOverallNumber}`; // Use overall number for X-axis for consistency across charts if rally counts differ
-                    svg.appendChild(xLabel);
-                }
+                const titleText = `Rally ${rally.rallyOverallNumber} (Set ${rally.setNumber}, #${rally.rallyInSetNumber}): ${rally.durationSeconds.toFixed(1)}s. Scored by Team ${rally.scoringTeam || 'N/A'}${rally.scorerPlayerId && playerStats && playerStats[rally.scorerPlayerId] ? ' (Player: ' + playerStats[rally.scorerPlayerId].name + ' #' + playerStats[rally.scorerPlayerId].shirt + ')' : ''}. End: ${rally.endTimeWallTime}`;
+                const title = document.createElementNS(svgNS, "title"); title.textContent = titleText; rect.appendChild(title); svg.appendChild(rect);
+                if (calculatedBarWidth >= 15) { const xLabel = document.createElementNS(svgNS, "text"); xLabel.setAttribute("x", x + calculatedBarWidth / 2); xLabel.setAttribute("y", chartAreaPaddingTop + chartHeight + 15); xLabel.setAttribute("text-anchor", "middle"); xLabel.setAttribute("font-size", "9px"); xLabel.setAttribute("fill", "#4b5563"); xLabel.textContent = `${rally.rallyOverallNumber}`; svg.appendChild(xLabel); }
             });
             targetVisualizationEl.appendChild(svg);
         }
 
-        // --- Display Rally Stats Summary (All Rallies) ---
         function displayRallyStatsSummary(rallyDurationsData) {
             rallyStatsSummaryContentEl.innerHTML = ''; 
             if (!rallyDurationsData || rallyDurationsData.length === 0) { rallyStatsSummaryContentEl.innerHTML = '<p class="text-center text-gray-500">No rally data to calculate statistics.</p>'; return; }
             const durations = rallyDurationsData.map(r => r.durationSeconds).filter(d => d > 0); 
             if (durations.length === 0) { rallyStatsSummaryContentEl.innerHTML = '<p class="text-center text-gray-500">No valid positive rally durations found.</p>'; return; }
             const mean = calculateMean(durations); const median = calculateMedian(durations); const range = calculateRange(durations); const stdDev = calculateStandardDeviation(durations);
-            const statsTable = document.createElement('table'); statsTable.id = 'rally-stats-summary-table'; statsTable.className = 'w-full'; 
+            const statsTable = document.createElement('table'); statsTable.id = 'rally-stats-summary-table'; statsTable.className = 'w-full advanced-stats-table'; 
             const tbody = statsTable.createTBody();
             function addStatRow(label, value, unit = 's') { const row = tbody.insertRow(); const cellLabel = row.insertCell(); cellLabel.textContent = label; cellLabel.className = 'font-semibold text-gray-600'; const cellValue = row.insertCell(); if (typeof value === 'number' && !isNaN(value)) { cellValue.textContent = unit ? value.toFixed(1) + unit : value.toString(); } else { cellValue.textContent = value || 'N/A'; } cellValue.className = 'text-gray-800'; }
             addStatRow('Total Rallies Analyzed:', durations.length, null); addStatRow('Mean Rally Length:', mean); addStatRow('Median Rally Length:', median); addStatRow('Shortest Rally (Min):', range.min); addStatRow('Longest Rally (Max):', range.max); addStatRow('Standard Deviation:', stdDev);
             rallyStatsSummaryContentEl.appendChild(statsTable);
         }
-
-        // --- Display Player-Scored Rally Stats Summary ---
         function displayPlayerScoredRallyStatsSummary(rallyDurationsData) {
             playerScoredRallyStatsSummaryContentEl.innerHTML = ''; 
             if (!rallyDurationsData || rallyDurationsData.length === 0) { playerScoredRallyStatsSummaryContentEl.innerHTML = '<p class="text-center text-gray-500">No rally data to calculate statistics.</p>'; return; }
@@ -493,33 +440,411 @@
             const durations = playerScoredRallies.map(r => r.durationSeconds).filter(d => d > 0);
             if (durations.length === 0) { playerScoredRallyStatsSummaryContentEl.innerHTML = '<p class="text-center text-gray-500">No valid positive durations for player-scored rallies.</p>'; return; }
             const mean = calculateMean(durations); const median = calculateMedian(durations); const range = calculateRange(durations); const stdDev = calculateStandardDeviation(durations);
-            const statsTable = document.createElement('table'); statsTable.id = 'player-scored-rally-stats-table'; statsTable.className = 'w-full';
+            const statsTable = document.createElement('table'); statsTable.id = 'player-scored-rally-stats-table'; statsTable.className = 'w-full advanced-stats-table';
             const tbody = statsTable.createTBody();
             function addStatRow(label, value, unit = 's') { const row = tbody.insertRow(); const cellLabel = row.insertCell(); cellLabel.textContent = label; cellLabel.className = 'font-semibold text-gray-600'; const cellValue = row.insertCell(); if (typeof value === 'number' && !isNaN(value)) { cellValue.textContent = unit ? value.toFixed(1) + unit : value.toString(); } else { cellValue.textContent = value || 'N/A'; } cellValue.className = 'text-gray-800'; }
             addStatRow('Player-Scored Rallies Analyzed:', durations.length, null); addStatRow('Mean Length (Player-Scored):', mean); addStatRow('Median Length (Player-Scored):', median); addStatRow('Shortest (Player-Scored):', range.min); addStatRow('Longest (Player-Scored):', range.max); addStatRow('Std. Deviation (Player-Scored):', stdDev);
             playerScoredRallyStatsSummaryContentEl.appendChild(statsTable);
         }
 
-        // --- Load Team Matches Functions ---
-        async function loadTeamMatches() {
-            const url = teamMatchesUrlInput.value.trim();
-            if (!url) { setStatusMessage(teamLoadStatusEl, 'Please enter a Team Matches URL.', 'error'); return; }
-            setStatusMessage(teamLoadStatusEl, 'Loading team matches...', 'loading');
-            loadTeamMatchesBtn.disabled = true; matchListDisplayAreaEl.innerHTML = ''; 
+        // --- Advanced Statistics Calculation Functions ---
+        function calculateSetSummaries(gameSortedEvents, teamAName, teamBName) {
+            const setSummaries = []; let currentSetData = null;
+            gameSortedEvents.forEach(event => {
+                const eventPeriod = parseInt(event.period);
+                if (event.code === 'aloitajakso' && eventPeriod > 0) {
+                    if (currentSetData && currentSetData.setNumber !== eventPeriod) { setSummaries.push(currentSetData); currentSetData = null; }
+                    if (!currentSetData || currentSetData.setNumber !== eventPeriod) { currentSetData = { setNumber: eventPeriod, startTime: parseTimeToSeconds(event.wall_time), endTime: null, durationSeconds: null, scoreA: 0, scoreB: 0, winningTeamName: null, margin: null }; }
+                }
+                if (currentSetData && event.period == currentSetData.setNumber) {
+                    if (event.code === 'piste') { const scoreMatch = event.description?.match(/(\d+)-(\d+)/); if (scoreMatch) { currentSetData.scoreA = parseInt(scoreMatch[1]); currentSetData.scoreB = parseInt(scoreMatch[2]); } } 
+                    else if (event.code === 'maali') { 
+                        currentSetData.endTime = parseTimeToSeconds(event.wall_time);
+                        if (currentSetData.startTime && currentSetData.endTime) { currentSetData.durationSeconds = currentSetData.endTime - currentSetData.startTime; }
+                        if (currentSetData.scoreA > currentSetData.scoreB) { currentSetData.winningTeamName = teamAName; currentSetData.margin = currentSetData.scoreA - currentSetData.scoreB; } 
+                        else if (currentSetData.scoreB > currentSetData.scoreA) { currentSetData.winningTeamName = teamBName; currentSetData.margin = currentSetData.scoreB - currentSetData.scoreA; } 
+                        else { currentSetData.winningTeamName = "Tie/Ongoing"; currentSetData.margin = 0; }
+                        setSummaries.push(currentSetData); currentSetData = null; 
+                    }
+                }
+            });
+            if (currentSetData && !currentSetData.endTime) {
+                const gameEndEvent = gameSortedEvents.find(e => e.code === 'lopetaottelu');
+                if (gameEndEvent) {
+                    currentSetData.endTime = parseTimeToSeconds(gameEndEvent.wall_time);
+                     if (currentSetData.startTime && currentSetData.endTime) { currentSetData.durationSeconds = currentSetData.endTime - currentSetData.startTime; }
+                     if (currentSetData.scoreA > currentSetData.scoreB) { currentSetData.winningTeamName = teamAName; currentSetData.margin = currentSetData.scoreA - currentSetData.scoreB; } 
+                     else if (currentSetData.scoreB > currentSetData.scoreA) { currentSetData.winningTeamName = teamBName; currentSetData.margin = currentSetData.scoreB - currentSetData.scoreA; }
+                }
+                if(currentSetData) setSummaries.push(currentSetData);
+            }
+            return setSummaries;
+        }
+
+        function calculateSideOutAndPointRuns(gameSortedEvents, teamAId_param, teamBId_param) {
+            let sideOutsA = { opportunities: 0, successful: 0 }; let sideOutsB = { opportunities: 0, successful: 0 };
+            let longestRunA = 0, currentRunA = 0; let longestRunB = 0, currentRunB = 0;
+            let currentServingTeamId = null; 
+            gameSortedEvents.forEach(event => {
+                const eventPeriod = parseInt(event.period);
+                if (event.code === 'aloitajakso') { currentServingTeamId = null; currentRunA = 0; currentRunB = 0; }
+                else if (event.code === 'aloittavajoukkue') { currentServingTeamId = String(event.team_id); } 
+                else if (event.code === 'piste') {
+                    const pointWinnerIdByEvent = String(event.team_id); 
+                    if (currentServingTeamId && currentServingTeamId !== pointWinnerIdByEvent) {
+                        if (currentServingTeamId === teamAId_param) { sideOutsB.opportunities++; sideOutsB.successful++; } 
+                        else if (currentServingTeamId === teamBId_param) { sideOutsA.opportunities++; sideOutsA.successful++; }
+                    } else if (currentServingTeamId && currentServingTeamId === pointWinnerIdByEvent) {
+                        if (currentServingTeamId === teamAId_param) sideOutsB.opportunities++; else if (currentServingTeamId === teamBId_param) sideOutsA.opportunities++;
+                    }
+                    currentServingTeamId = pointWinnerIdByEvent;
+                    if (pointWinnerIdByEvent === teamAId_param) { currentRunA++; longestRunA = Math.max(longestRunA, currentRunA); currentRunB = 0; } 
+                    else if (pointWinnerIdByEvent === teamBId_param) { currentRunB++; longestRunB = Math.max(longestRunB, currentRunB); currentRunA = 0; }
+                }
+            });
+            return { sideOutsTeamA: { ...sideOutsA, percentage: sideOutsA.opportunities > 0 ? (sideOutsA.successful / sideOutsA.opportunities * 100) : 0 }, sideOutsTeamB: { ...sideOutsB, percentage: sideOutsB.opportunities > 0 ? (sideOutsB.successful / sideOutsB.opportunities * 100) : 0 }, longestRunTeamA: longestRunA, longestRunTeamB: longestRunB };
+        }
+
+        function calculatePlayerPointsPerSet(gameSortedEvents, lineupData, teamAId_param, teamBId_param) {
+            const playerSetPoints = {}; if (!lineupData || !lineupData.match || !lineupData.match.lineups) return playerSetPoints;
+            lineupData.match.lineups.forEach(p => { playerSetPoints[String(p.player_id)] = { name: p.player_name, shirt: p.shirt_number, teamSymbol: p.team_id === teamAId_param ? 'A' : (p.team_id === teamBId_param ? 'B' : '?'), setPoints: {} }; });
+            gameSortedEvents.forEach(event => {
+                if (event.code === 'piste' && event.player_id && String(event.player_id) !== '1') {
+                    const playerId = String(event.player_id); const setNumber = parseInt(event.period);
+                    if (playerSetPoints[playerId] && setNumber > 0) { if (!playerSetPoints[playerId].setPoints[setNumber]) { playerSetPoints[playerId].setPoints[setNumber] = 0; } playerSetPoints[playerId].setPoints[setNumber]++; }
+                }
+            }); return playerSetPoints;
+        }
+        
+        function calculateLeadChangesAndMaxLeads(gameSortedEvents, teamAId_param, teamBId_param) {
+            const setStats = {}; let currentSetScores = {A: 0, B: 0}; let currentSetLeadingTeam = null; 
+            let currentPeriod = 0;
+            gameSortedEvents.forEach(event => {
+                const eventPeriod = parseInt(event.period);
+                if (event.code === 'aloitajakso' && eventPeriod > 0) {
+                    if (currentPeriod > 0 && setStats[currentPeriod]) { /* Already finalized by maali or implicitly */ }
+                    currentPeriod = eventPeriod;
+                    setStats[currentPeriod] = { setNumber: currentPeriod, leadChanges: 0, maxLeadA: 0, maxLeadB: 0, finalScoreA: 0, finalScoreB: 0 };
+                    currentSetScores = {A: 0, B: 0}; currentSetLeadingTeam = null;
+                }
+                if (event.code === 'piste' && eventPeriod === currentPeriod && eventPeriod > 0) {
+                    const scoreMatch = event.description?.match(/(\d+)-(\d+)/);
+                    if (scoreMatch) {
+                        const pointsA = parseInt(scoreMatch[1]); const pointsB = parseInt(scoreMatch[2]);
+                        currentSetScores.A = pointsA; currentSetScores.B = pointsB;
+                        setStats[currentPeriod].finalScoreA = pointsA; setStats[currentPeriod].finalScoreB = pointsB;
+                        const newLeadingTeam = pointsA > pointsB ? 'A' : (pointsB > pointsA ? 'B' : null);
+                        if (currentSetLeadingTeam && newLeadingTeam && currentSetLeadingTeam !== newLeadingTeam) { setStats[currentPeriod].leadChanges++; }
+                        currentSetLeadingTeam = newLeadingTeam;
+                        if (pointsA > pointsB) setStats[currentPeriod].maxLeadA = Math.max(setStats[currentPeriod].maxLeadA, pointsA - pointsB);
+                        else if (pointsB > pointsA) setStats[currentPeriod].maxLeadB = Math.max(setStats[currentPeriod].maxLeadB, pointsB - pointsA);
+                    }
+                } else if (event.code === 'maali' && eventPeriod === currentPeriod && eventPeriod > 0) { /* Max leads already tracked per point */ }
+            });
+            return Object.values(setStats);
+        }
+
+        function calculateTimeoutPerformance(gameSortedEvents, teamAId_param, teamBId_param) {
+            const perf = { teamA_afterOwn: { scored: 0, opportunities: 0 }, teamA_afterOpponent: { scored: 0, opportunities: 0 }, teamB_afterOwn: { scored: 0, opportunities: 0 }, teamB_afterOpponent: { scored: 0, opportunities: 0 } };
+            for (let i = 0; i < gameSortedEvents.length; i++) {
+                const event = gameSortedEvents[i];
+                if (event.code === 'aikalisa') {
+                    const timeoutTeamId = String(event.team_id); let nextPointEvent = null;
+                    for (let j = i + 1; j < gameSortedEvents.length; j++) { if (gameSortedEvents[j].code === 'piste') { nextPointEvent = gameSortedEvents[j]; break; } if (gameSortedEvents[j].code === 'aikalisa' || gameSortedEvents[j].code === 'aloitajakso' || gameSortedEvents[j].code === 'maali') break; }
+                    if (nextPointEvent) {
+                        const pointWinnerId = String(nextPointEvent.team_id);
+                        if (timeoutTeamId === teamAId_param) { perf.teamA_afterOwn.opportunities++; if (pointWinnerId === teamAId_param) perf.teamA_afterOwn.scored++; } 
+                        else if (timeoutTeamId === teamBId_param) { perf.teamB_afterOwn.opportunities++; if (pointWinnerId === teamBId_param) perf.teamB_afterOwn.scored++; }
+                        if (timeoutTeamId === teamBId_param) { perf.teamA_afterOpponent.opportunities++; if (pointWinnerId === teamAId_param) perf.teamA_afterOpponent.scored++; } 
+                        else if (timeoutTeamId === teamAId_param) { perf.teamB_afterOpponent.opportunities++; if (pointWinnerId === teamBId_param) perf.teamB_afterOpponent.scored++; }
+                    }
+                }
+            }
+            Object.keys(perf).forEach(key => { perf[key].percentage = perf[key].opportunities > 0 ? (perf[key].scored / perf[key].opportunities * 100) : 0; });
+            return perf;
+        }
+
+        function calculateServingStreaks(gameSortedEvents, lineupData, teamAId_param, teamBId_param) {
+            const playerServingStreaks = {}; if (!lineupData || !lineupData.match || !lineupData.match.lineups || !playerStats ) return [];
+            Object.keys(playerStats).forEach(playerId => { // Initialize from current game's playerStats
+                playerServingStreaks[playerId] = { name: playerStats[playerId].name, shirt: playerStats[playerId].shirt, teamSymbol: playerStats[playerId].team, maxStreak: 0, currentStreakPoints: 0 };
+            });
+
+            let currentTeamServerPlayerId = null; 
+            let currentTeamServingId = null; 
+
+            gameSortedEvents.forEach(event => {
+                if (event.code === 'aloitajakso') {
+                    if (currentTeamServerPlayerId && playerServingStreaks[currentTeamServerPlayerId]) { playerServingStreaks[currentTeamServerPlayerId].maxStreak = Math.max(playerServingStreaks[currentTeamServerPlayerId].maxStreak, playerServingStreaks[currentTeamServerPlayerId].currentStreakPoints); playerServingStreaks[currentTeamServerPlayerId].currentStreakPoints = 0; }
+                    currentTeamServerPlayerId = null; currentTeamServingId = null;
+                } else if (event.code === 'aloittavajoukkue') {
+                    if (currentTeamServerPlayerId && playerServingStreaks[currentTeamServerPlayerId]) { playerServingStreaks[currentTeamServerPlayerId].maxStreak = Math.max(playerServingStreaks[currentTeamServerPlayerId].maxStreak, playerServingStreaks[currentTeamServerPlayerId].currentStreakPoints); playerServingStreaks[currentTeamServerPlayerId].currentStreakPoints = 0; }
+                    currentTeamServingId = String(event.team_id);
+                    // Approximation: Use the player in position 1 of the serving team *at the start of the current set*
+                    // This won't be accurate if substitutions changed the server or if it's not the first serve of the set.
+                    // A more robust solution would require tracking dynamic player positions throughout the replay.
+                    const teamPositions = currentTeamServingId === teamAId_param ? playerPositionsA : playerPositionsB; 
+                    currentTeamServerPlayerId = teamPositions[1] || null; 
+                     if(currentTeamServerPlayerId && playerServingStreaks[currentTeamServerPlayerId]) playerServingStreaks[currentTeamServerPlayerId].currentStreakPoints = 0;
+
+                } else if (event.code === 'piste') {
+                    const pointWinnerTeamId = String(event.team_id);
+                    if (currentTeamServerPlayerId && playerServingStreaks[currentTeamServerPlayerId] && currentTeamServingId === pointWinnerTeamId) {
+                        playerServingStreaks[currentTeamServerPlayerId].currentStreakPoints++;
+                    } else if (currentTeamServerPlayerId && playerServingStreaks[currentTeamServerPlayerId]) { 
+                        playerServingStreaks[currentTeamServerPlayerId].maxStreak = Math.max(playerServingStreaks[currentTeamServerPlayerId].maxStreak, playerServingStreaks[currentTeamServerPlayerId].currentStreakPoints);
+                        playerServingStreaks[currentTeamServerPlayerId].currentStreakPoints = 0;
+                        currentTeamServingId = pointWinnerTeamId;
+                        const teamPositions = currentTeamServingId === teamAId_param ? playerPositionsA : playerPositionsB; 
+                        currentTeamServerPlayerId = teamPositions[1] || null; 
+                        if(currentTeamServerPlayerId && playerServingStreaks[currentTeamServerPlayerId]) playerServingStreaks[currentTeamServerPlayerId].currentStreakPoints = 0;
+                    } else { 
+                        currentTeamServingId = pointWinnerTeamId;
+                        const teamPositions = currentTeamServingId === teamAId_param ? playerPositionsA : playerPositionsB;
+                        currentTeamServerPlayerId = teamPositions[1] || null;
+                         if(currentTeamServerPlayerId && playerServingStreaks[currentTeamServerPlayerId]) playerServingStreaks[currentTeamServerPlayerId].currentStreakPoints = 0;
+                    }
+                }
+            });
+            if (currentTeamServerPlayerId && playerServingStreaks[currentTeamServerPlayerId]) { playerServingStreaks[currentTeamServerPlayerId].maxStreak = Math.max(playerServingStreaks[currentTeamServerPlayerId].maxStreak, playerServingStreaks[currentTeamServerPlayerId].currentStreakPoints); }
+            return Object.values(playerServingStreaks).filter(p => p.maxStreak > 0).sort((a,b) => b.maxStreak - a.maxStreak);
+        }
+        
+        function calculateServeReceiveAndBreakPoints(gameSortedEvents, teamAId_param, teamBId_param) {
+            const stats = {
+                teamA: { pointsOnOwnServe: 0, pointsOnOpponentServe: 0, breakPointsWon: 0, serviceOpportunities: 0 },
+                teamB: { pointsOnOwnServe: 0, pointsOnOpponentServe: 0, breakPointsWon: 0, serviceOpportunities: 0 }
+            };
+            let currentServingTeamId = null;
+            gameSortedEvents.forEach(event => {
+                if (event.code === 'aloittavajoukkue') {
+                    currentServingTeamId = String(event.team_id);
+                    if (currentServingTeamId === teamAId_param) stats.teamA.serviceOpportunities++; else if (currentServingTeamId === teamBId_param) stats.teamB.serviceOpportunities++;
+                } else if (event.code === 'piste') {
+                    const pointWinnerId = String(event.team_id);
+                    if (currentServingTeamId) {
+                        if (currentServingTeamId === teamAId_param) { // A serving
+                            if (pointWinnerId === teamAId_param) stats.teamA.pointsOnOwnServe++;
+                            else { stats.teamB.pointsOnOpponentServe++; stats.teamB.breakPointsWon++; }
+                        } else if (currentServingTeamId === teamBId_param) { // B serving
+                            if (pointWinnerId === teamBId_param) stats.teamB.pointsOnOwnServe++;
+                            else { stats.teamA.pointsOnOpponentServe++; stats.teamA.breakPointsWon++; }
+                        }
+                    }
+                    // Update serving team for next point & count new service opportunity if sideout
+                    if (currentServingTeamId !== pointWinnerId) {
+                        currentServingTeamId = pointWinnerId;
+                        if (currentServingTeamId === teamAId_param) stats.teamA.serviceOpportunities++; 
+                        else if (currentServingTeamId === teamBId_param) stats.teamB.serviceOpportunities++;
+                    }
+                } else if (event.code === 'aloitajakso') {
+                    currentServingTeamId = null; 
+                }
+            });
+            return stats;
+        }
+
+        function calculateAveragePointsPerServiceTurn(gameSortedEvents, teamAId_param, teamBId_param) {
+            const stats = {
+                teamA: { totalServiceTurns: 0, totalPointsOnServiceTurns: 0, average: 0 },
+                teamB: { totalServiceTurns: 0, totalPointsOnServiceTurns: 0, average: 0 }
+            };
+            let currentServingTeamId = null;
+            let pointsThisTurn = 0;
+
+            gameSortedEvents.forEach(event => {
+                if (event.code === 'aloittavajoukkue') {
+                    if (currentServingTeamId && pointsThisTurn >= 0) { // Finalize previous turn, even if 0 points
+                        if (currentServingTeamId === teamAId_param) stats.teamA.totalPointsOnServiceTurns += pointsThisTurn;
+                        else if (currentServingTeamId === teamBId_param) stats.teamB.totalPointsOnServiceTurns += pointsThisTurn;
+                    }
+                    currentServingTeamId = String(event.team_id);
+                    pointsThisTurn = 0;
+                    if (currentServingTeamId === teamAId_param) stats.teamA.totalServiceTurns++;
+                    else if (currentServingTeamId === teamBId_param) stats.teamB.totalServiceTurns++;
+                } else if (event.code === 'piste') {
+                    const pointWinnerId = String(event.team_id);
+                    if (currentServingTeamId) {
+                        if (currentServingTeamId === pointWinnerId) { 
+                            pointsThisTurn++;
+                        } else { 
+                            if (currentServingTeamId === teamAId_param) stats.teamA.totalPointsOnServiceTurns += pointsThisTurn;
+                            else if (currentServingTeamId === teamBId_param) stats.teamB.totalPointsOnServiceTurns += pointsThisTurn;
+                            
+                            currentServingTeamId = pointWinnerId; 
+                            pointsThisTurn = 0; 
+                            if (currentServingTeamId === teamAId_param) stats.teamA.totalServiceTurns++;
+                            else if (currentServingTeamId === teamBId_param) stats.teamB.totalServiceTurns++;
+                        }
+                    } else { 
+                        currentServingTeamId = pointWinnerId;
+                        pointsThisTurn = 0;
+                        if (currentServingTeamId === teamAId_param) stats.teamA.totalServiceTurns++;
+                        else if (currentServingTeamId === teamBId_param) stats.teamB.totalServiceTurns++;
+                    }
+                } else if (event.code === 'aloitajakso') {
+                    if (currentServingTeamId && pointsThisTurn >= 0) { 
+                         if (currentServingTeamId === teamAId_param) stats.teamA.totalPointsOnServiceTurns += pointsThisTurn;
+                         else if (currentServingTeamId === teamBId_param) stats.teamB.totalPointsOnServiceTurns += pointsThisTurn;
+                    }
+                    currentServingTeamId = null; pointsThisTurn = 0;
+                }
+            });
+            if (currentServingTeamId && pointsThisTurn >= 0) { // Finalize last turn
+                if (currentServingTeamId === teamAId_param) stats.teamA.totalPointsOnServiceTurns += pointsThisTurn;
+                else if (currentServingTeamId === teamBId_param) stats.teamB.totalPointsOnServiceTurns += pointsThisTurn;
+            }
+            if (stats.teamA.totalServiceTurns > 0) stats.teamA.average = stats.teamA.totalPointsOnServiceTurns / stats.teamA.totalServiceTurns;
+            if (stats.teamB.totalServiceTurns > 0) stats.teamB.average = stats.teamB.totalPointsOnServiceTurns / stats.teamB.totalServiceTurns;
+            return stats;
+        }
+
+        // --- Advanced Statistics Display Functions ---
+        function renderSetSummariesTable(setSummaries, targetElementId) {
+            const contentEl = document.getElementById(targetElementId); contentEl.innerHTML = '';
+            if (!setSummaries || setSummaries.length === 0) { contentEl.innerHTML = '<p>No set summary data available.</p>'; return; }
+            const table = document.createElement('table'); table.className = 'w-full advanced-stats-table text-center'; 
+            const thead = table.createTHead(); const headerRow = thead.insertRow();
+            ["Set", "Score", "Winner", "Margin", "Duration"].forEach(text => { const th = document.createElement('th'); th.textContent = text; headerRow.appendChild(th); });
+            const tbody = table.createTBody();
+            setSummaries.forEach(s => { const row = tbody.insertRow(); row.insertCell().textContent = s.setNumber; row.insertCell().textContent = `${s.scoreA} - ${s.scoreB}`; row.insertCell().textContent = s.winningTeamName || 'N/A'; row.insertCell().textContent = s.margin !== null ? s.margin : 'N/A'; row.insertCell().textContent = s.durationSeconds !== null ? formatSecondsToMMSS(s.durationSeconds) : 'N/A'; });
+            contentEl.appendChild(table);
+        }
+
+        function renderSideOutPercentageTable(sideOutData, targetElementId) {
+            const contentEl = document.getElementById(targetElementId); contentEl.innerHTML = '';
+            if (!sideOutData) { contentEl.innerHTML = '<p>No side-out data available.</p>'; return; }
+            const table = document.createElement('table'); table.className = 'w-full md:w-3/4 lg:w-1/2 mx-auto advanced-stats-table'; 
+            const thead = table.createTHead(); const headerRow = thead.insertRow();
+            ["Team", "Side-Out %", "Successful/Opportunities"].forEach(text => { const th = document.createElement('th'); th.textContent = text; headerRow.appendChild(th); });
+            const tbody = table.createTBody();
+            function createRow(teamName, data) { const row = tbody.insertRow(); row.insertCell().textContent = teamName; row.insertCell().textContent = `${data.percentage.toFixed(1)}%`; row.insertCell().textContent = `${data.successful}/${data.opportunities}`; }
+            if (teamANameEl.textContent && sideOutData.sideOutsTeamA) createRow(teamANameEl.textContent, sideOutData.sideOutsTeamA);
+            if (teamBNameEl.textContent && sideOutData.sideOutsTeamB) createRow(teamBNameEl.textContent, sideOutData.sideOutsTeamB);
+            contentEl.appendChild(table);
+        }
+
+        function renderLongestPointRunsTable(pointRunData, targetElementId) {
+            const contentEl = document.getElementById(targetElementId); contentEl.innerHTML = '';
+            if (!pointRunData) { contentEl.innerHTML = '<p>No point run data available.</p>'; return; }
+             const table = document.createElement('table'); table.className = 'w-full md:w-3/4 lg:w-1/2 mx-auto advanced-stats-table';
+            const thead = table.createTHead(); const headerRow = thead.insertRow();
+            ["Team", "Longest Run"].forEach(text => { const th = document.createElement('th'); th.textContent = text; headerRow.appendChild(th); });
+            const tbody = table.createTBody();
+            if (teamANameEl.textContent) { const rowA = tbody.insertRow(); rowA.insertCell().textContent = teamANameEl.textContent; rowA.insertCell().textContent = pointRunData.longestRunTeamA; }
+            if (teamBNameEl.textContent) { const rowB = tbody.insertRow(); rowB.insertCell().textContent = teamBNameEl.textContent; rowB.insertCell().textContent = pointRunData.longestRunTeamB; }
+            contentEl.appendChild(table);
+        }
+
+        function renderPlayerPointsPerSetTable(playerPointsData, targetElementId) {
+            const contentEl = document.getElementById(targetElementId); contentEl.innerHTML = '';
+            if (!playerPointsData || Object.keys(playerPointsData).length === 0) { contentEl.innerHTML = '<p>No player points per set data.</p>'; return; }
+            const allSets = new Set(); Object.values(playerPointsData).forEach(player => Object.keys(player.setPoints).forEach(setNum => allSets.add(parseInt(setNum))));
+            const sortedSets = Array.from(allSets).sort((a,b) => a - b);
+            const table = document.createElement('table'); table.className = 'w-full advanced-stats-table text-sm';
+            const thead = table.createTHead(); const headerRow = thead.insertRow(); const headers = ["#", "Player", "Team"];
+            sortedSets.forEach(setNum => headers.push(`Set ${setNum}`)); headers.push("Total");
+            headers.forEach(text => { const th = document.createElement('th'); th.textContent = text; th.className="text-center"; headerRow.appendChild(th); });
+            const tbody = table.createTBody();
+            const sortedPlayers = Object.values(playerPointsData).filter(p => p.shirt).sort((a,b) => (a.teamSymbol.localeCompare(b.teamSymbol)) || (parseInt(a.shirt) - parseInt(b.shirt)) );
+            sortedPlayers.forEach(player => {
+                const row = tbody.insertRow(); row.insertCell().textContent = player.shirt; row.insertCell().textContent = player.name; row.insertCell().textContent = player.teamSymbol;
+                let totalPoints = 0;
+                sortedSets.forEach(setNum => { const pointsInSet = player.setPoints[setNum] || 0; row.insertCell().textContent = pointsInSet > 0 ? pointsInSet : '-'; totalPoints += pointsInSet; });
+                row.insertCell().textContent = totalPoints > 0 ? totalPoints : '-';
+                 Array.from(row.cells).forEach(cell => cell.className = 'text-center'); row.cells[1].className = 'text-left';
+            }); contentEl.appendChild(table);
+        }
+
+        function renderLeadChangesMaxLeadsTable(leadData, targetElementId) {
+            const contentEl = document.getElementById(targetElementId); contentEl.innerHTML = '';
+            if (!leadData || leadData.length === 0) { contentEl.innerHTML = '<p>No lead change/max lead data.</p>'; return; }
+            const table = document.createElement('table'); table.className = 'w-full advanced-stats-table text-center';
+            const thead = table.createTHead(); const headerRow = thead.insertRow();
+            ["Set", "Final Score", "Lead Changes", `Max Lead ${teamANameEl.textContent || 'Team A'}`, `Max Lead ${teamBNameEl.textContent || 'Team B'}`].forEach(text => { const th = document.createElement('th'); th.textContent = text; headerRow.appendChild(th); });
+            const tbody = table.createTBody();
+            leadData.sort((a,b) => a.setNumber - b.setNumber).forEach(s => { const row = tbody.insertRow(); row.insertCell().textContent = s.setNumber; row.insertCell().textContent = `${s.finalScoreA} - ${s.finalScoreB}`; row.insertCell().textContent = s.leadChanges; row.insertCell().textContent = s.maxLeadA; row.insertCell().textContent = s.maxLeadB; });
+            contentEl.appendChild(table);
+        }
+
+        function renderTimeoutPerformanceTable(perfData, targetElementId) {
+            const contentEl = document.getElementById(targetElementId); contentEl.innerHTML = '';
+            if (!perfData) { contentEl.innerHTML = '<p>No timeout performance data.</p>'; return; }
+            const table = document.createElement('table'); table.className = 'w-full md:w-3/4 lg:w-2/3 mx-auto advanced-stats-table';
+            const thead = table.createTHead(); const headerRow = thead.insertRow();
+            ["Scenario", "Team", "Point Won %", "Scored/Opportunities"].forEach(text => { const th = document.createElement('th'); th.textContent = text; headerRow.appendChild(th); });
+            const tbody = table.createTBody();
+            function addRow(scenario, teamName, data) { const row = tbody.insertRow(); row.insertCell().textContent = scenario; row.insertCell().textContent = teamName; row.insertCell().textContent = `${data.percentage.toFixed(1)}%`; row.insertCell().textContent = `${data.scored}/${data.opportunities}`; }
+            addRow("After Own Timeout", teamANameEl.textContent || 'Team A', perfData.teamA_afterOwn); addRow("After Opponent's Timeout", teamANameEl.textContent || 'Team A', perfData.teamA_afterOpponent);
+            addRow("After Own Timeout", teamBNameEl.textContent || 'Team B', perfData.teamB_afterOwn); addRow("After Opponent's Timeout", teamBNameEl.textContent || 'Team B', perfData.teamB_afterOpponent);
+            contentEl.appendChild(table);
+        }
+        
+        function renderServingStreaksTable(streakData, targetElementId) {
+            const contentEl = document.getElementById(targetElementId); contentEl.innerHTML = '';
+            if (!streakData || streakData.length === 0) { contentEl.innerHTML = '<p>No serving streak data available.</p>'; return; }
+            const table = document.createElement('table'); table.className = 'w-full md:w-3/4 lg:w-2/3 mx-auto advanced-stats-table';
+            const thead = table.createTHead(); const headerRow = thead.insertRow();
+            ["#", "Player", "Team", "Longest Serving Streak (Team Pts)"].forEach(text => { const th = document.createElement('th'); th.textContent = text; headerRow.appendChild(th); });
+            const tbody = table.createTBody();
+            streakData.forEach(p => { if (p.maxStreak > 0) { const row = tbody.insertRow(); row.insertCell().textContent = p.shirt; row.insertCell().textContent = p.name; row.insertCell().textContent = p.teamSymbol === 'A' ? (teamANameEl.textContent || 'Team A') : (teamBNameEl.textContent || 'Team B'); row.insertCell().textContent = p.maxStreak; row.cells[3].classList.add('text-center'); } });
+            if (tbody.rows.length === 0) { contentEl.innerHTML = '<p class="text-center text-gray-500">No serving streaks of 1+ point found.</p>'; } else { contentEl.appendChild(table); }
+        }
+
+        function renderServeReceivePointsTable(data, targetElementId) {
+            const contentEl = document.getElementById(targetElementId); contentEl.innerHTML = '';
+            if (!data) { contentEl.innerHTML = '<p>No serve/receive point data.</p>'; return; }
+            const table = document.createElement('table'); table.className = 'w-full md:w-3/4 lg:w-2/3 mx-auto advanced-stats-table';
+            const thead = table.createTHead(); const headerRow = thead.insertRow();
+            ["Team", "Points on Own Serve", "Points on Opponent's Serve (Breaks)"].forEach(text => { const th = document.createElement('th'); th.textContent = text; th.className="text-center"; headerRow.appendChild(th); });
+            const tbody = table.createTBody();
+            function addRow(teamName, stats) { const r = tbody.insertRow(); r.insertCell().textContent = teamName; r.insertCell().textContent = stats.pointsOnOwnServe; r.insertCell().textContent = `${stats.pointsOnOpponentServe} (${stats.breakPointsWon})`; Array.from(r.cells).forEach(c => c.classList.add('text-center')); r.cells[0].classList.remove('text-center'); r.cells[0].classList.add('text-left');}
+            if(teamANameEl.textContent) addRow(teamANameEl.textContent, data.teamA);
+            if(teamBNameEl.textContent) addRow(teamBNameEl.textContent, data.teamB);
+            contentEl.appendChild(table);
+        }
+
+        function renderAvgPointsServiceTurnTable(data, targetElementId) {
+            const contentEl = document.getElementById(targetElementId); contentEl.innerHTML = '';
+            if (!data) { contentEl.innerHTML = '<p>No avg points per service turn data.</p>'; return; }
+            const table = document.createElement('table'); table.className = 'w-full md:w-3/4 lg:w-1/2 mx-auto advanced-stats-table';
+            const thead = table.createTHead(); const headerRow = thead.insertRow();
+            ["Team", "Avg. Points per Service Turn", "Total Points / Total Turns"].forEach(text => { const th = document.createElement('th'); th.textContent = text; th.className="text-center"; headerRow.appendChild(th); });
+            const tbody = table.createTBody();
+            function addRow(teamName, stats) { const r = tbody.insertRow(); r.insertCell().textContent = teamName; r.insertCell().textContent = stats.average.toFixed(2); r.insertCell().textContent = `${stats.totalPointsOnServiceTurns} / ${stats.totalServiceTurns}`; Array.from(r.cells).forEach(c => c.classList.add('text-center')); r.cells[0].classList.remove('text-center'); r.cells[0].classList.add('text-left');}
+            if(teamANameEl.textContent) addRow(teamANameEl.textContent, data.teamA);
+            if(teamBNameEl.textContent) addRow(teamBNameEl.textContent, data.teamB);
+            contentEl.appendChild(table);
+        }
+
+
+        function displayAdvancedGameStats() {
+            if (!currentGameAdvancedStats) { console.warn("Advanced stats data not calculated yet."); return; }
+            renderSetSummariesTable(currentGameAdvancedStats.setSummaries, 'advanced-set-summaries-content');
+            renderSideOutPercentageTable(currentGameAdvancedStats.sideOutAndPointRuns, 'advanced-sideout-content');
+            renderLongestPointRunsTable(currentGameAdvancedStats.sideOutAndPointRuns, 'advanced-pointruns-content');
+            renderPlayerPointsPerSetTable(currentGameAdvancedStats.playerPointsPerSet, 'advanced-player-points-set-content');
+            renderLeadChangesMaxLeadsTable(currentGameAdvancedStats.leadChangesMaxLeads, 'advanced-leadchanges-maxleads-content');
+            renderTimeoutPerformanceTable(currentGameAdvancedStats.timeoutPerformance, 'advanced-timeout-performance-content');
+            renderServingStreaksTable(currentGameAdvancedStats.servingStreaks, 'advanced-serving-streaks-content');
+            renderServeReceivePointsTable(currentGameAdvancedStats.serveReceivePoints, 'advanced-serve-receive-points-content');
+            renderAvgPointsServiceTurnTable(currentGameAdvancedStats.avgPointsServiceTurn, 'advanced-avg-points-service-turn-content');
+            advancedStatsRendered = true;
+        }
+
+        async function loadTeamMatches() { 
+            const url = teamMatchesUrlInput.value.trim(); if (!url) { setStatusMessage(teamLoadStatusEl, 'Please enter a Team Matches URL.', 'error'); return; }
+            setStatusMessage(teamLoadStatusEl, 'Loading team matches...', 'loading'); loadTeamMatchesBtn.disabled = true; matchListDisplayAreaEl.innerHTML = ''; 
             try {
                 let parsedUrl; try { parsedUrl = new URL(url); } catch (_) { throw new Error('Invalid URL format.'); }
                 if (!parsedUrl.pathname.includes('getMatches')) { throw new Error('URL does not appear to be a getMatches URL.'); }
                 if (!parsedUrl.searchParams.get('team_id')) { throw new Error('URL is missing the required team_id parameter.'); }
-                const response = await fetch(url);
-                if (!response.ok) { throw new Error(`HTTP error! Status: ${response.status}`); }
-                const data = await response.json();
-                if (!data?.matches || !Array.isArray(data.matches)) { throw new Error('Invalid response format: Missing "matches" array.'); }
-                displayMatchList(data.matches);
-                setStatusMessage(teamLoadStatusEl, `Found ${data.matches.length} matches. Select a game to load.`, 'success');
+                const response = await fetch(url); if (!response.ok) { throw new Error(`HTTP error! Status: ${response.status}`); }
+                const data = await response.json(); if (!data?.matches || !Array.isArray(data.matches)) { throw new Error('Invalid response format: Missing "matches" array.'); }
+                displayMatchList(data.matches); setStatusMessage(teamLoadStatusEl, `Found ${data.matches.length} matches. Select a game to load.`, 'success');
             } catch (error) { console.error('Error loading team matches:', error); setStatusMessage(teamLoadStatusEl, `Error: ${error.message}`, 'error'); matchListDisplayAreaEl.innerHTML = '<p class="text-red-500">Could not load matches.</p>'; } 
             finally { loadTeamMatchesBtn.disabled = false; }
         }
-
         function displayMatchList(matches) {
             matchListDisplayAreaEl.innerHTML = ''; 
             if (matches.length === 0) { matchListDisplayAreaEl.innerHTML = '<p>No matches found for this team.</p>'; return; }
@@ -538,25 +863,18 @@
             });
             matchListDisplayAreaEl.appendChild(ul);
         }
-
-        // --- Load Single Game Data Function ---
-        async function loadGameData(url) {
+        async function loadGameData(url) { 
             setStatusMessage(loadStatusEl, 'Loading game data...', 'loading'); loadDataBtn.disabled = true; teamLoadStatusEl.textContent = ''; resetUIState(); 
             try {
                 let parsedUrl; try { parsedUrl = new URL(url); } catch (_) { throw new Error('Invalid URL format.'); }
                 if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') { throw new Error('URL must use http or https.'); }
                 if (!parsedUrl.searchParams.get('match_id')) { throw new Error('URL is missing the required match_id parameter for getMatch.'); }
-                const response = await fetch(url);
-                if (!response.ok) { throw new Error(`HTTP error! Status: ${response.status}`); }
-                const data = await response.json();
-                if (!data?.match?.events || !Array.isArray(data.match.events) || !data?.match?.lineups || !Array.isArray(data.match.lineups) || !data?.match?.team_A_id || !data?.match?.team_B_id) { throw new Error('Invalid game data: Missing critical fields like events, lineups, or team IDs.'); }
-                console.log("Game data fetched and validated successfully");
+                const response = await fetch(url); if (!response.ok) { throw new Error(`HTTP error! Status: ${response.status}`); }
+                const data = await response.json(); if (!data?.match?.events || !Array.isArray(data.match.events) || !data?.match?.lineups || !Array.isArray(data.match.lineups) || !data?.match?.team_A_id || !data?.match?.team_B_id) { throw new Error('Invalid game data: Missing critical fields like events, lineups, or team IDs.'); }
                 loadedGameData = data; setStatusMessage(loadStatusEl, 'Game data loaded successfully!', 'success'); initializeGame(); replayUIContainerEl.classList.remove('opacity-50'); 
             } catch (error) { console.error('Error loading game data:', error); setStatusMessage(loadStatusEl, `Error: ${error.message}`, 'error'); loadedGameData = null; resetUIState(); } 
             finally { loadDataBtn.disabled = false; }
         }
-
-        // --- Reset UI Function ---
         function resetUIState() {
             pausePlayback(); replayUIContainerEl.classList.add('opacity-50');
             prevEventBtn.disabled = true; playPauseBtn.disabled = true; playPauseBtn.textContent = 'Play'; nextEventBtn.disabled = true; skipToEndBtn.disabled = true;
@@ -567,126 +885,93 @@
             statsTeamATbody.innerHTML = ''; statsTeamATfoot.innerHTML = ''; statsTeamBTbody.innerHTML = ''; statsTeamBTfoot.innerHTML = '';
             document.querySelectorAll('.player-marker').forEach(marker => marker.remove());
             
-            allRalliesDurationVisualizationEl.innerHTML = '<p class="text-center text-gray-500">Rally duration chart will appear here once a game is loaded.</p>';
+            allRalliesDurationVisualizationEl.innerHTML = '<p class="text-center text-gray-500">Rally duration chart will appear here.</p>';
             allRalliesDurationChartAreaEl.classList.add('opacity-50');
             rallyStatsSummaryContentEl.innerHTML = '<p class="text-center text-gray-500">Rally statistics will appear here.</p>';
             rallyStatsSummaryAreaEl.classList.add('opacity-50');
-            
-            playerScoredRalliesDurationVisualizationEl.innerHTML = '<p class="text-center text-gray-500">Player-scored rally duration chart will appear here.</p>';
+            playerScoredRalliesDurationVisualizationEl.innerHTML = '<p class="text-center text-gray-500">Player-scored rally chart will appear here.</p>';
             playerScoredRalliesDurationChartAreaEl.classList.add('opacity-50');
-            playerScoredRallyStatsSummaryContentEl.innerHTML = '<p class="text-center text-gray-500">Statistics for rallies scored by a specific player will appear here.</p>'; 
+            playerScoredRallyStatsSummaryContentEl.innerHTML = '<p class="text-center text-gray-500">Player-scored rally stats will appear here.</p>'; 
             playerScoredRallyStatsSummaryAreaEl.classList.add('opacity-50'); 
 
+            advancedStatsContainerEl.style.display = 'none'; toggleAdvancedStatsBtn.textContent = 'Show Advanced Game Statistics'; toggleAdvancedStatsBtn.disabled = true;
+            const placeholderText = '<p class="text-gray-400 italic text-center">Data will appear here.</p>';
+            advancedSetSummariesContentEl.innerHTML = placeholderText;
+            advancedSideoutContentEl.innerHTML = placeholderText;
+            advancedPointrunsContentEl.innerHTML = placeholderText;
+            advancedPlayerPointsSetContentEl.innerHTML = placeholderText;
+            advancedLeadChangesMaxLeadsContentEl.innerHTML = placeholderText;
+            advancedTimeoutPerformanceContentEl.innerHTML = placeholderText;
+            advancedServingStreaksContentEl.innerHTML = placeholderText;
+            advancedServeReceivePointsContentEl.innerHTML = placeholderText;
+            advancedAvgPointsServiceTurnContentEl.innerHTML = placeholderText;
+            currentGameAdvancedStats = null; advancedStatsRendered = false;
             loadedGameData = null; currentEventIndex = -1; sortedEvents = []; gameHistory = [];
         }
 
-        // --- Initialization Function ---
         function initializeGame() {
-            console.log("Initializing game with loaded data...");
-            if (!loadedGameData?.match) { console.error("Cannot initialize: No valid game data."); resetUIState(); return; }
+            if (!loadedGameData?.match) { resetUIState(); return; }
             pausePlayback(); 
-
             const matchData = loadedGameData.match;
             teamAId = matchData.team_A_id; teamBId = matchData.team_B_id;
             teamANameEl.textContent = matchData.team_A_name || 'Team A'; statsTeamANameEl.textContent = `${matchData.team_A_name || 'Team A'} Stats`;
             teamBNameEl.textContent = matchData.team_B_name || 'Team B'; statsTeamBNameEl.textContent = `${matchData.team_B_name || 'Team B'} Stats`;
             matchDateEl.textContent = matchData.date || 'N/A'; matchTimeEl.textContent = matchData.time || 'N/A'; matchVenueEl.textContent = matchData.venue_name || 'N/A'; matchRefereeEl.textContent = matchData.referee_1_name || 'N/A'; matchAttendanceEl.textContent = matchData.attendance || '0';
-
             teamATimeouts = 0; teamBTimeouts = 0; teamASubs = 0; teamBSubs = 0;
             (matchData.events || []).forEach(event => { if (event.code === 'aikalisa') { if (event.team_id === teamAId) teamATimeouts++; else if (event.team_id === teamBId) teamBTimeouts++; } });
             const subsEvents = matchData.substitution_events || (matchData.events || []).filter(e => e.code === 'vaihto');
             subsEvents.forEach(sub => { if (sub.team_id === teamAId) teamASubs++; else if (sub.team_id === teamBId) teamBSubs++; });
-
             playerStats = {};
-            matchData.lineups.forEach(p => { const playerIdStr = String(p.player_id); if (playerIdStr && p.team_id && p.player_name && p.shirt_number !== undefined) { playerStats[playerIdStr] = { name: p.player_name, shirt: p.shirt_number, team: p.team_id === teamAId ? 'A' : 'B', points: 0, serves: 0, isCaptain: p.captain === 'C' }; } else { console.warn("Skipping invalid lineup entry:", p); } });
-
+            matchData.lineups.forEach(p => { const playerIdStr = String(p.player_id); if (playerIdStr && p.team_id && p.player_name && p.shirt_number !== undefined) { playerStats[playerIdStr] = { name: p.player_name, shirt: p.shirt_number, team: p.team_id === teamAId ? 'A' : 'B', points: 0, serves: 0, isCaptain: p.captain === 'C' }; } });
             sortedEvents = [...matchData.events].sort((a, b) => { if (!a.wall_time || !b.wall_time) return 0; if (a.wall_time < b.wall_time) return -1; if (a.wall_time > b.wall_time) return 1; return 0; });
             sortedEvents.unshift({ code: "startgame", period: "0", wall_time: "00:00:00", code_fi: "Game Starting", description: "" });
-
             currentEventIndex = -1; currentSet = 0; teamAPoints = 0; teamBPoints = 0; teamASets = 0; teamBSets = 0;
             servingTeam = null; lastServingTeam = null; playerPositionsA = {}; playerPositionsB = {};
             teamAImpliedOpponentErrors = 0; teamBImpliedOpponentErrors = 0; currentSetStartTime = null; gameHistory = [];
 
             const rallyDurationsData = calculateRallyDurations(sortedEvents);
-            console.log("Calculated Rally Durations:", rallyDurationsData);
-            
-            // Display chart for all rallies
             displayGenericRallyDurationBarChart(rallyDurationsData, allRalliesDurationVisualizationEl, "All Rallies");
             allRalliesDurationChartAreaEl.classList.remove('opacity-50');
             displayRallyStatsSummary(rallyDurationsData); 
             rallyStatsSummaryAreaEl.classList.remove('opacity-50'); 
-
-            // Filter for player-scored rallies and display their chart & stats
             const playerScoredRallies = rallyDurationsData.filter(r => r.scorerPlayerId !== null);
             displayGenericRallyDurationBarChart(playerScoredRallies, playerScoredRalliesDurationVisualizationEl, "Player-Scored Rallies");
             playerScoredRalliesDurationChartAreaEl.classList.remove('opacity-50');
-            displayPlayerScoredRallyStatsSummary(rallyDurationsData); // This already filters internally
+            displayPlayerScoredRallyStatsSummary(rallyDurationsData); 
             playerScoredRallyStatsSummaryAreaEl.classList.remove('opacity-50'); 
 
+            currentGameAdvancedStats = {
+                setSummaries: calculateSetSummaries(sortedEvents, teamANameEl.textContent, teamBNameEl.textContent),
+                sideOutAndPointRuns: calculateSideOutAndPointRuns(sortedEvents, teamAId, teamBId),
+                playerPointsPerSet: calculatePlayerPointsPerSet(sortedEvents, loadedGameData, teamAId, teamBId),
+                leadChangesMaxLeads: calculateLeadChangesAndMaxLeads(sortedEvents, teamAId, teamBId),
+                timeoutPerformance: calculateTimeoutPerformance(sortedEvents, teamAId, teamBId),
+                servingStreaks: calculateServingStreaks(sortedEvents, loadedGameData, teamAId, teamBId),
+                serveReceivePoints: calculateServeReceiveAndBreakPoints(sortedEvents, teamAId, teamBId),
+                avgPointsServiceTurn: calculateAveragePointsPerServiceTurn(sortedEvents, teamAId, teamBId)
+            };
+            advancedStatsRendered = false; 
+            toggleAdvancedStatsBtn.disabled = false; 
+
             replayUIContainerEl.classList.remove('opacity-50'); 
-            displayEvent(0); 
-            saveState();
-            updateStatsTable();
-            updateSetElapsedTimeUI(null);
-            console.log("Initialization complete.");
+            displayEvent(0); saveState(); updateStatsTable(); updateSetElapsedTimeUI(null);
         }
 
-        // --- Playback Control ---
         function playPlayback() { if (!loadedGameData || isPlaying || currentEventIndex >= sortedEvents.length - 1) return; isPlaying = true; playPauseBtn.textContent = 'Pause'; playPauseBtn.classList.remove('bg-green-500', 'hover:bg-green-600'); playPauseBtn.classList.add('bg-yellow-500', 'hover:bg-yellow-600'); prevEventBtn.disabled = true; nextEventBtn.disabled = true; skipToEndBtn.disabled = true; const advanceStep = () => { if (currentEventIndex < sortedEvents.length - 1) { displayEvent(currentEventIndex + 1, false); const currentEventCode = sortedEvents[currentEventIndex]?.code; if (currentEventCode === 'lopetaottelu') { pausePlayback(); } } else { pausePlayback(); } }; advanceStep(); if (isPlaying) { playIntervalId = setInterval(advanceStep, playbackSpeed); } }
         function pausePlayback() { if (!isPlaying && !playIntervalId) return; isPlaying = false; if (playIntervalId) { clearInterval(playIntervalId); playIntervalId = null; } playPauseBtn.textContent = 'Play'; playPauseBtn.classList.remove('bg-yellow-500', 'hover:bg-yellow-600'); playPauseBtn.classList.add('bg-green-500', 'hover:bg-green-600'); if(loadedGameData) { const isEnd = currentEventIndex >= sortedEvents.length - 1 || sortedEvents[currentEventIndex]?.code === 'lopetaottelu'; prevEventBtn.disabled = currentEventIndex <= 0; nextEventBtn.disabled = isEnd; playPauseBtn.disabled = isEnd; skipToEndBtn.disabled = isEnd; } else { prevEventBtn.disabled = true; nextEventBtn.disabled = true; playPauseBtn.disabled = true; skipToEndBtn.disabled = true; } }
-
-        // --- State Management for Previous Button ---
         function saveState() { if (!loadedGameData) return; const state = { index: currentEventIndex, set: currentSet, pointsA: teamAPoints, pointsB: teamBPoints, setsA: teamASets, setsB: teamBSets, serving: servingTeam, lastServing: lastServingTeam, posA: JSON.parse(JSON.stringify(playerPositionsA)), posB: JSON.parse(JSON.stringify(playerPositionsB)), stats: JSON.parse(JSON.stringify(playerStats)), errorsA: teamAImpliedOpponentErrors, errorsB: teamBImpliedOpponentErrors, setStartTime: currentSetStartTime }; if (gameHistory.length === 0 || gameHistory[gameHistory.length - 1].index !== state.index) { gameHistory.push(state); } }
         function restoreState(state) { if (!loadedGameData || !state) return; currentEventIndex = state.index; currentSet = state.set; teamAPoints = state.pointsA; teamBPoints = state.pointsB; teamASets = state.setsA; teamBSets = state.setsB; servingTeam = state.serving; lastServingTeam = state.lastServing; playerPositionsA = JSON.parse(JSON.stringify(state.posA)); playerPositionsB = JSON.parse(JSON.stringify(state.posB)); playerStats = JSON.parse(JSON.stringify(state.stats)); teamAImpliedOpponentErrors = state.errorsA; teamBImpliedOpponentErrors = state.errorsB; currentSetStartTime = state.setStartTime; const event = sortedEvents[currentEventIndex]; eventDescEl.textContent = event?.code_fi || event?.code || "State Restored"; updateScoreboard(); drawCourt(); updateStatsTable(); updateSetElapsedTimeUI(event?.wall_time); pausePlayback(); }
-
-        // --- Rotation Logic ---
         function rotateTeam(teamIdSymbol) { const currentPositions = teamIdSymbol === 'A' ? playerPositionsA : playerPositionsB; const newPositions = {}; newPositions[1] = currentPositions[2]; newPositions[6] = currentPositions[1]; newPositions[5] = currentPositions[6]; newPositions[4] = currentPositions[5]; newPositions[3] = currentPositions[4]; newPositions[2] = currentPositions[3]; for (let zone = 1; zone <= 6; zone++) { if (teamIdSymbol === 'A') playerPositionsA[zone] = newPositions[zone] || null; else playerPositionsB[zone] = newPositions[zone] || null; } }
-
-        // --- Set Starting Lineup ---
         function setStartingLineup(setNumber) { playerPositionsA = {}; playerPositionsB = {}; if (!loadedGameData?.match?.lineups) return; loadedGameData.match.lineups.forEach(p => { const playerIdStr = String(p.player_id); if (p.playing_position?.[setNumber]) { const zone = p.playing_position[setNumber]; if (zone >= 1 && zone <= 6) { if (p.team_id === teamAId) playerPositionsA[zone] = playerIdStr; else playerPositionsB[zone] = playerIdStr; } } }); }
-
-        // --- Update UI Functions ---
         function updateScoreboard() { setNumberEl.textContent = currentSet > 0 ? currentSet : '-'; teamAPointsEl.textContent = teamAPoints; teamBPointsEl.textContent = teamBPoints; teamASetsEl.textContent = teamASets; teamBSetsEl.textContent = teamBSets; }
         function drawCourt() {
             document.querySelectorAll('.player-marker').forEach(marker => marker.remove());
-            const formatPlayerNameForMarker = (fullName) => {
-                if (!fullName || typeof fullName !== 'string') return '';
-                const parts = fullName.trim().split(' ');
-                if (parts.length === 0) return '';
-                const firstName = parts[0];
-                let lastNameInitial = '';
-                if (parts.length > 1) { lastNameInitial = parts[parts.length - 1].charAt(0).toUpperCase() + '.'; }
-                return parts.length === 1 ? firstName : `${firstName} ${lastNameInitial}`;
-            };
-            const drawMarkers = (positions, teamClass) => {
-                for (const zone in positions) {
-                    const playerId = positions[zone];
-                    if (playerId && playerStats[playerId]) {
-                        const zoneEl = document.getElementById(`zone-${teamClass}-${zone}`);
-                        if (zoneEl) {
-                            const marker = document.createElement('div');
-                            marker.classList.add('player-marker');
-                            marker.classList.add(teamClass === 'a' ? 'team-a' : 'team-b');
-                            marker.dataset.playerId = playerId;
-                            const numberSpan = document.createElement('span');
-                            numberSpan.classList.add('shirt-number');
-                            numberSpan.textContent = playerStats[playerId].shirt;
-                            const nameSpan = document.createElement('span');
-                            nameSpan.classList.add('player-name-on-marker');
-                            nameSpan.textContent = formatPlayerNameForMarker(playerStats[playerId].name);
-                            marker.title = playerStats[playerId].name; 
-                            marker.appendChild(numberSpan); marker.appendChild(nameSpan);
-                            if ((servingTeam === 'A' && teamClass === 'a' && parseInt(zone) === 1) || (servingTeam === 'B' && teamClass === 'b' && parseInt(zone) === 1)) { marker.classList.add('serving'); }
-                            zoneEl.appendChild(marker);
-                        }
-                    }
-                }
-            };
+            const formatPlayerNameForMarker = (fullName) => { if (!fullName || typeof fullName !== 'string') return ''; const parts = fullName.trim().split(' '); if (parts.length === 0) return ''; const firstName = parts[0]; let lastNameInitial = ''; if (parts.length > 1) { lastNameInitial = parts[parts.length - 1].charAt(0).toUpperCase() + '.'; } return parts.length === 1 ? firstName : `${firstName} ${lastNameInitial}`; };
+            const drawMarkers = (positions, teamClass) => { for (const zone in positions) { const playerId = positions[zone]; if (playerId && playerStats[playerId]) { const zoneEl = document.getElementById(`zone-${teamClass}-${zone}`); if (zoneEl) { const marker = document.createElement('div'); marker.classList.add('player-marker'); marker.classList.add(teamClass === 'a' ? 'team-a' : 'team-b'); marker.dataset.playerId = playerId; const numberSpan = document.createElement('span'); numberSpan.classList.add('shirt-number'); numberSpan.textContent = playerStats[playerId].shirt; const nameSpan = document.createElement('span'); nameSpan.classList.add('player-name-on-marker'); nameSpan.textContent = formatPlayerNameForMarker(playerStats[playerId].name); marker.title = playerStats[playerId].name; marker.appendChild(numberSpan); marker.appendChild(nameSpan); if ((servingTeam === 'A' && teamClass === 'a' && parseInt(zone) === 1) || (servingTeam === 'B' && teamClass === 'b' && parseInt(zone) === 1)) { marker.classList.add('serving'); } zoneEl.appendChild(marker); } } } };
             drawMarkers(playerPositionsA, 'a'); drawMarkers(playerPositionsB, 'b');
         }
         function updateStatsTable() {
-            statsTeamATbody.innerHTML = ''; statsTeamATfoot.innerHTML = '';
-            statsTeamBTbody.innerHTML = ''; statsTeamBTfoot.innerHTML = '';
+            statsTeamATbody.innerHTML = ''; statsTeamATfoot.innerHTML = ''; statsTeamBTbody.innerHTML = ''; statsTeamBTfoot.innerHTML = '';
             Object.entries(playerStats).filter(([, stats]) => stats.shirt).sort(([,a],[,b]) => parseInt(a.shirt) - parseInt(b.shirt)).forEach(([playerId, stats]) => { const row = document.createElement('tr'); const captainMark = stats.isCaptain ? ' (C)' : ''; row.innerHTML = `<td>${stats.shirt}</td><td>${stats.name}${captainMark}</td><td>${stats.points}</td><td>${stats.serves}</td>`; if (stats.team === 'A') statsTeamATbody.appendChild(row); else statsTeamBTbody.appendChild(row); });
             const errorRowA = document.createElement('tr'); errorRowA.classList.add('summary-row'); errorRowA.innerHTML = `<td colspan="2">Opponent Errors (Implied)</td><td>${teamAImpliedOpponentErrors}</td><td>-</td>`; statsTeamATfoot.appendChild(errorRowA);
             const subsRowA = document.createElement('tr'); subsRowA.classList.add('summary-row'); subsRowA.innerHTML = `<td colspan="2">Total Substitutions</td><td>${teamASubs}</td><td>-</td>`; statsTeamATfoot.appendChild(subsRowA);
@@ -696,12 +981,8 @@
             const timeoutRowB = document.createElement('tr'); timeoutRowB.classList.add('summary-row'); timeoutRowB.innerHTML = `<td colspan="2">Total Timeouts Used</td><td>${teamBTimeouts}</td><td>-</td>`; statsTeamBTfoot.appendChild(timeoutRowB);
         }
         function updateSetElapsedTimeUI(currentEventTimeStr) { if (currentSetStartTime && currentEventTimeStr) { const startSeconds = parseTimeToSeconds(currentSetStartTime); const currentSeconds = parseTimeToSeconds(currentEventTimeStr); if (startSeconds !== null && currentSeconds !== null && currentSeconds >= startSeconds) { const elapsedSeconds = currentSeconds - startSeconds; setElapsedTimeEl.textContent = formatSecondsToMMSS(elapsedSeconds); } else { setElapsedTimeEl.textContent = "--:--"; } } else { setElapsedTimeEl.textContent = "00:00"; } }
-
-        // --- Highlight Functions ---
         function highlightPointScorer(playerId) { if (pointScorerHighlightTimeout) clearTimeout(pointScorerHighlightTimeout); document.querySelectorAll('.player-marker.point-scorer').forEach(el => el.classList.remove('point-scorer')); if (!playerId || !playerStats[playerId]) return; const scorerMarker = document.querySelector(`.player-marker[data-player-id="${playerId}"]`); if (scorerMarker) { scorerMarker.classList.add('point-scorer'); pointScorerHighlightTimeout = setTimeout(() => { scorerMarker.classList.remove('point-scorer'); pointScorerHighlightTimeout = null; }, 1500); } }
         function highlightLostPointSide(losingTeamIdSymbol) { if (lostPointHighlightTimeout) clearTimeout(lostPointHighlightTimeout); courtSideAEl.classList.remove('lost-point-highlight'); courtSideBEl.classList.remove('lost-point-highlight'); const targetSideEl = losingTeamIdSymbol === 'A' ? courtSideAEl : courtSideBEl; if (targetSideEl) { targetSideEl.classList.add('lost-point-highlight'); lostPointHighlightTimeout = setTimeout(() => { targetSideEl.classList.remove('lost-point-highlight'); lostPointHighlightTimeout = null; }, 800); } }
-
-        // --- Process Single Event for State Update (No UI) ---
         function processEventForStateUpdate(event) {
              let needsRotation = null; let pointScoredBy = null; let scorerPlayerId = null;
              if (event.period && parseInt(event.period) > 0 && parseInt(event.period) !== currentSet) { if (event.code !== 'maali') { currentSet = parseInt(event.period); teamAPoints = 0; teamBPoints = 0; setStartingLineup(currentSet); currentSetStartTime = event.wall_time; } }
@@ -714,11 +995,9 @@
              }
              if (needsRotation) { rotateTeam(needsRotation); const serverPlayerIdRotated = needsRotation === 'A' ? playerPositionsA[1] : playerPositionsB[1]; if (serverPlayerIdRotated && playerStats[serverPlayerIdRotated]) { playerStats[serverPlayerIdRotated].serves++; } }
         }
-
-        // --- Main Event Display Function (Handles UI) ---
         function displayEvent(index, isRestoring = false) {
              if (!loadedGameData || index < 0 || index >= sortedEvents.length) return;
-            const event = sortedEvents[index]; console.log("Displaying Event:", index, event);
+            const event = sortedEvents[index];
              let scorerPlayerId = null; let lostPointSide = null;
              if (event.code === 'piste') { const scoreMatch = event.description?.match(/(\d+)-(\d+)/); if (scoreMatch) { const refPointsA = isRestoring ? gameHistory[gameHistory.length-1]?.pointsA : teamAPoints; const refPointsB = isRestoring ? gameHistory[gameHistory.length-1]?.pointsB : teamBPoints; const pointScoredByTeam = (parseInt(scoreMatch[1]) > refPointsA) ? 'A' : 'B'; if (event.player_id && String(event.player_id) !== '1') { scorerPlayerId = String(event.player_id); } else { lostPointSide = pointScoredByTeam === 'A' ? 'B' : 'A'; } } }
              if (!isRestoring) { if (currentEventIndex >= 0) { saveState(); } processEventForStateUpdate(event); }
@@ -729,19 +1008,42 @@
             const isEnd = currentEventIndex >= sortedEvents.length - 1 || event.code === 'lopetaottelu'; prevEventBtn.disabled = currentEventIndex <= 0; nextEventBtn.disabled = isEnd; playPauseBtn.disabled = isEnd; skipToEndBtn.disabled = isEnd; if (isEnd && isPlaying) { pausePlayback(); }
         }
 
-        // --- Event Listeners ---
-        loadTeamMatchesBtn.addEventListener('click', loadTeamMatches);
-        loadDataBtn.addEventListener('click', () => { const url = gameUrlInput.value.trim(); if (url) { loadGameData(url); } else { setStatusMessage(loadStatusEl, 'Please enter a Game Data URL.', 'error'); } });
-        playPauseBtn.addEventListener('click', () => { if (isPlaying) { pausePlayback(); } else { playPlayback(); } });
-        nextEventBtn.addEventListener('click', () => { pausePlayback(); if (loadedGameData && currentEventIndex < sortedEvents.length - 1) { displayEvent(currentEventIndex + 1, false); } });
-        prevEventBtn.addEventListener('click', () => { pausePlayback(); if (loadedGameData && gameHistory.length > 0) { const prevState = gameHistory.pop(); if (prevState) { console.log("Restoring previous state:", prevState); restoreState(prevState); } } else if (loadedGameData && currentEventIndex > 0){ console.warn("History empty, re-initializing."); initializeGame(); } });
-        skipToEndBtn.addEventListener('click', () => { if (!loadedGameData || currentEventIndex >= sortedEvents.length - 1) return; console.log("Skipping to end..."); pausePlayback(); prevEventBtn.disabled = true; playPauseBtn.disabled = true; nextEventBtn.disabled = true; skipToEndBtn.disabled = true; setStatusMessage(loadStatusEl, 'Calculating final state...', 'loading'); setTimeout(() => { saveState(); for (let i = currentEventIndex + 1; i < sortedEvents.length; i++) { processEventForStateUpdate(sortedEvents[i]); } currentEventIndex = sortedEvents.length - 1; const finalEvent = sortedEvents[currentEventIndex]; eventDescEl.textContent = finalEvent?.code === 'lopetaottelu' ? "Game Finished" : (finalEvent?.code_fi || finalEvent?.code || "Game End"); updateScoreboard(); drawCourt(); updateStatsTable(); updateSetElapsedTimeUI(finalEvent?.wall_time); prevEventBtn.disabled = false; nextEventBtn.disabled = true; playPauseBtn.disabled = true; skipToEndBtn.disabled = true; setStatusMessage(loadStatusEl, 'Skipped to end.', 'success'); setTimeout(() => { if(loadStatusEl.textContent === 'Skipped to end.') loadStatusEl.textContent = '';}, 2000); console.log("Finished skipping to end."); saveState(); }, 50); });
+        document.addEventListener('DOMContentLoaded', () => {
+            teamMatchesUrlInput = document.getElementById('team-matches-url'); loadTeamMatchesBtn = document.getElementById('load-team-matches-btn'); teamLoadStatusEl = document.getElementById('team-load-status'); matchListDisplayAreaEl = document.getElementById('match-list-display-area');
+            gameUrlInput = document.getElementById('game-url'); loadDataBtn = document.getElementById('load-data-btn'); loadStatusEl = document.getElementById('load-status');
+            replayUIContainerEl = document.getElementById('replay-ui-container'); scoreboardEl = document.getElementById('scoreboard'); matchInfoEl = document.getElementById('match-info');
+            matchDateEl = document.getElementById('match-date'); matchTimeEl = document.getElementById('match-time'); matchVenueEl = document.getElementById('match-venue'); matchRefereeEl = document.getElementById('match-referee'); matchAttendanceEl = document.getElementById('match-attendance'); setElapsedTimeEl = document.getElementById('set-elapsed-time');
+            courtAreaEl = document.getElementById('court-area'); allRalliesDurationChartAreaEl = document.getElementById('all-rallies-duration-chart-area'); allRalliesDurationVisualizationEl = document.getElementById('all-rallies-duration-visualization');
+            rallyStatsSummaryAreaEl = document.getElementById('rally-stats-summary-area'); rallyStatsSummaryContentEl = document.getElementById('rally-stats-summary-content');
+            playerScoredRalliesDurationChartAreaEl = document.getElementById('player-scored-rallies-duration-chart-area'); playerScoredRalliesDurationVisualizationEl = document.getElementById('player-scored-rallies-duration-visualization');
+            playerScoredRallyStatsSummaryAreaEl = document.getElementById('player-scored-rally-stats-summary-area'); playerScoredRallyStatsSummaryContentEl = document.getElementById('player-scored-rally-stats-summary-content');
+            statsAreaEl = document.getElementById('stats-area'); setNumberEl = document.getElementById('set-number'); teamANameEl = document.getElementById('team-a-name');
+            teamAPointsEl = document.getElementById('team-a-points'); teamASetsEl = document.getElementById('team-a-sets'); teamBNameEl = document.getElementById('team-b-name'); teamBPointsEl = document.getElementById('team-b-points'); teamBSetsEl = document.getElementById('team-b-sets'); eventDescEl = document.getElementById('event-description');
+            nextEventBtn = document.getElementById('next-event'); prevEventBtn = document.getElementById('prev-event'); playPauseBtn = document.getElementById('play-pause-btn'); skipToEndBtn = document.getElementById('skip-to-end-btn');
+            statsTeamANameEl = document.getElementById('stats-team-a-name'); statsTeamATbody = document.querySelector('#stats-team-a tbody'); statsTeamATfoot = document.querySelector('#stats-team-a tfoot');
+            statsTeamBNameEl = document.getElementById('stats-team-b-name'); statsTeamBTbody = document.querySelector('#stats-team-b tbody'); statsTeamBTfoot = document.querySelector('#stats-team-b tfoot');
+            courtSideAEl = document.getElementById('court-side-a'); courtSideBEl = document.getElementById('court-side-b');
+            toggleAdvancedStatsBtn = document.getElementById('toggle-advanced-stats-btn'); advancedStatsContainerEl = document.getElementById('advanced-stats-container');
+            advancedSetSummariesContentEl = document.getElementById('advanced-set-summaries-content'); advancedSideoutContentEl = document.getElementById('advanced-sideout-content'); advancedPointrunsContentEl = document.getElementById('advanced-pointruns-content');
+            advancedPlayerPointsSetContentEl = document.getElementById('advanced-player-points-set-content'); advancedLeadChangesMaxLeadsContentEl = document.getElementById('advanced-leadchanges-maxleads-content');
+            advancedTimeoutPerformanceContentEl = document.getElementById('advanced-timeout-performance-content'); advancedServingStreaksContentEl = document.getElementById('advanced-serving-streaks-content');
+            advancedServeReceivePointsContentEl = document.getElementById('advanced-serve-receive-points-content'); advancedAvgPointsServiceTurnContentEl = document.getElementById('advanced-avg-points-service-turn-content');
 
-        // --- Initial Load ---
-         document.addEventListener('DOMContentLoaded', () => {
-            resetUIState(); 
-            setStatusMessage(teamLoadStatusEl, 'Enter a team URL to list matches.', 'info');
-            setStatusMessage(loadStatusEl, 'Enter a game URL or select from a team list.', 'info');
+            loadTeamMatchesBtn.addEventListener('click', loadTeamMatches);
+            loadDataBtn.addEventListener('click', () => { const url = gameUrlInput.value.trim(); if (url) { loadGameData(url); } else { setStatusMessage(loadStatusEl, 'Please enter a Game Data URL.', 'error'); } });
+            playPauseBtn.addEventListener('click', () => { if (isPlaying) { pausePlayback(); } else { playPlayback(); } });
+            nextEventBtn.addEventListener('click', () => { pausePlayback(); if (loadedGameData && currentEventIndex < sortedEvents.length - 1) { displayEvent(currentEventIndex + 1, false); } });
+            prevEventBtn.addEventListener('click', () => { pausePlayback(); if (loadedGameData && gameHistory.length > 0) { const prevState = gameHistory.pop(); if (prevState) { restoreState(prevState); } } else if (loadedGameData && currentEventIndex > 0){ initializeGame(); } });
+            skipToEndBtn.addEventListener('click', () => { if (!loadedGameData || currentEventIndex >= sortedEvents.length - 1) return; pausePlayback(); prevEventBtn.disabled = true; playPauseBtn.disabled = true; nextEventBtn.disabled = true; skipToEndBtn.disabled = true; setStatusMessage(loadStatusEl, 'Calculating final state...', 'loading'); setTimeout(() => { saveState(); for (let i = currentEventIndex + 1; i < sortedEvents.length; i++) { processEventForStateUpdate(sortedEvents[i]); } currentEventIndex = sortedEvents.length - 1; const finalEvent = sortedEvents[currentEventIndex]; eventDescEl.textContent = finalEvent?.code === 'lopetaottelu' ? "Game Finished" : (finalEvent?.code_fi || finalEvent?.code || "Game End"); updateScoreboard(); drawCourt(); updateStatsTable(); updateSetElapsedTimeUI(finalEvent?.wall_time); prevEventBtn.disabled = false; nextEventBtn.disabled = true; playPauseBtn.disabled = true; skipToEndBtn.disabled = true; setStatusMessage(loadStatusEl, 'Skipped to end.', 'success'); setTimeout(() => { if(loadStatusEl.textContent === 'Skipped to end.') loadStatusEl.textContent = '';}, 2000); saveState(); }, 50); });
+            toggleAdvancedStatsBtn.addEventListener('click', () => {
+                if (advancedStatsContainerEl.style.display === 'none') {
+                    if (!advancedStatsRendered && currentGameAdvancedStats) { displayAdvancedGameStats(); }
+                    advancedStatsContainerEl.style.display = 'block'; toggleAdvancedStatsBtn.textContent = 'Hide Advanced Game Statistics';
+                } else {
+                    advancedStatsContainerEl.style.display = 'none'; toggleAdvancedStatsBtn.textContent = 'Show Advanced Game Statistics';
+                }
+            });
+            resetUIState(); setStatusMessage(teamLoadStatusEl, 'Enter a team URL to list matches.', 'info'); setStatusMessage(loadStatusEl, 'Enter a game URL or select from a team list.', 'info');
          });
     </script>
 </body>
