@@ -1,0 +1,13 @@
+{
+  "name": "volleyball-stats-calculator",
+  "version": "1.0.0",
+  "description": "Volleyball statistics calculation",
+  "main": "js/stats_calculator.js",
+  "type": "module",
+  "scripts": {
+    "test": "node tests/test_stats_calculator.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
