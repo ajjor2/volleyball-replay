@@ -226,8 +226,22 @@ export function calculateServingStreaks(gameSortedEvents, lineupData, teamAId_pa
     const playerInfo = {};
     lineupData.match.lineups.forEach(p => {
         const pid = String(p.player_id);
-        playerInfo[pid] = { name: p.player_name || '', shirt: p.shirt_number || '', teamSymbol: p.team_id === teamAId_param ? 'A' : 'B' };
+        playerInfo[pid] = { name: p.player_name || '', shirt: p.shirt_number || '', teamSymbol: p.team_id === teamAId_param ? 'A' : 'B', rawTeamId: p.team_id };
     });
+
+    // Helper to find player meta if initial map didn't include it (handles id type mismatches)
+    const getPlayerMeta = (pid) => {
+        const spid = String(pid);
+        if (playerInfo[spid]) return playerInfo[spid];
+        // Try to find in lineupData by matching loosely
+        const found = lineupData.match.lineups.find(p => String(p.player_id) === spid || p.player_id === pid || String(p.player_id) === String(Number(spid)));
+        if (found) {
+            const meta = { name: found.player_name || '', shirt: found.shirt_number || '', teamSymbol: found.team_id === teamAId_param ? 'A' : 'B', rawTeamId: found.team_id };
+            playerInfo[spid] = meta; // cache
+            return meta;
+        }
+        return { name: '', shirt: '', teamSymbol: '', rawTeamId: null };
+    };
 
     let positionsA = {};
     let positionsB = {};
@@ -275,6 +289,7 @@ export function calculateServingStreaks(gameSortedEvents, lineupData, teamAId_pa
     let currentServingTeamId = null;
     let currentServerPlayerId = null;
     let currentSetNum = null;
+    let lastSeenPeriod = null;
     // Track current server's consecutive team points
     let currentServerStreak = 0;
 
@@ -289,6 +304,12 @@ export function calculateServingStreaks(gameSortedEvents, lineupData, teamAId_pa
                 setStartingLineup(s);
             }
             currentServingTeamId = null; currentServerPlayerId = null; currentServerStreak = 0;
+        }
+
+        // Track last seen period for better set number detection
+        if (event && event.period) {
+            const pp = parseInt(event.period, 10);
+            if (!isNaN(pp) && pp > 0) lastSeenPeriod = pp;
         }
 
         // Apply substitutions that match the event timing
@@ -309,7 +330,9 @@ export function calculateServingStreaks(gameSortedEvents, lineupData, teamAId_pa
                 } else {
                     // Sideout: record the previous server streak if it's >= 2
                     if (currentServerPlayerId && currentServerStreak >= 2) {
-                        recordedStreaks.push({ playerId: currentServerPlayerId, name: playerInfo[currentServerPlayerId]?.name || '', shirt: playerInfo[currentServerPlayerId]?.shirt || '', teamSymbol: playerInfo[currentServerPlayerId]?.teamSymbol || '', setNum: currentSetNum, streak: currentServerStreak });
+                        const meta = getPlayerMeta(currentServerPlayerId);
+                        const setNumToRecord = currentSetNum || (event && event.period ? parseInt(event.period, 10) : lastSeenPeriod) || 1;
+                        recordedStreaks.push({ playerId: currentServerPlayerId, name: meta.name, shirt: meta.shirt, teamSymbol: meta.teamSymbol, setNum: setNumToRecord, streak: currentServerStreak });
                     }
                     // Reset and rotate the team that will now serve
                     currentServerStreak = 0;
@@ -331,8 +354,10 @@ export function calculateServingStreaks(gameSortedEvents, lineupData, teamAId_pa
             }
         } else if (event.code === 'lopetaottelu' || event.code === 'maali') {
             // Finalize ongoing streak when set/match ends
-            if (currentServerPlayerId && currentServerStreak >= 2) {
-                recordedStreaks.push({ playerId: currentServerPlayerId, name: playerInfo[currentServerPlayerId]?.name || '', shirt: playerInfo[currentServerPlayerId]?.shirt || '', teamSymbol: playerInfo[currentServerPlayerId]?.teamSymbol || '', setNum: currentSetNum, streak: currentServerStreak });
+                    if (currentServerPlayerId && currentServerStreak >= 2) {
+                const meta = getPlayerMeta(currentServerPlayerId);
+                const setNumToRecord = currentSetNum || lastSeenPeriod || 1;
+                recordedStreaks.push({ playerId: currentServerPlayerId, name: meta.name, shirt: meta.shirt, teamSymbol: meta.teamSymbol, setNum: setNumToRecord, streak: currentServerStreak });
             }
             currentServerStreak = 0;
         }
