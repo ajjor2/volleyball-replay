@@ -5,6 +5,10 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+  pages: write
+
 jobs:
   build-and-publish:
     runs-on: ubuntu-latest
@@ -12,6 +16,10 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          # Ensure the action runner persists the GITHUB_TOKEN credential so subsequent steps can push
+          persist-credentials: true
+          fetch-depth: 0
 
       - name: Prepare public directory
         run: |
