@@ -25,7 +25,11 @@ jobs:
       - name: Run tests
         run: |
           node --version
+          set -e
+          echo "Running stats calculator tests..."
           node tests/test_stats_calculator.js
+          echo "Running lineup utils tests..."
+          node tests/test_lineup_utils.js
 
   build-and-publish:
     name: Build and publish
