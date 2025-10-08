@@ -213,6 +213,129 @@ export function calculateGameStats(matchDetail) {
     return gameStats;
 }
 
+/**
+ * Calculate longest serving streaks per player given game events and lineup data.
+ * Returns array of { name, shirt, teamSymbol, maxStreak } sorted by descending maxStreak.
+ */
+export function calculateServingStreaks(gameSortedEvents, lineupData, teamAId_param, teamBId_param) {
+    // Self-contained simulation: builds starting lineups per set, tracks substitutions and rotations,
+    // and counts consecutive points scored while the same player is serving.
+    if (!lineupData || !lineupData.match || !Array.isArray(lineupData.match.lineups) || !Array.isArray(gameSortedEvents)) return [];
+
+    // Initialize per-player tracking from lineup entries
+    const playerServingStreaks = {};
+    lineupData.match.lineups.forEach(p => {
+        const pid = String(p.player_id);
+        playerServingStreaks[pid] = { name: p.player_name || '', shirt: p.shirt_number || '', teamSymbol: p.team_id === teamAId_param ? 'A' : 'B', maxStreak: 0, currentStreak: 0 };
+    });
+
+    // Helper structures: positions for each team (pos 1..6)
+    let positionsA = {};
+    let positionsB = {};
+
+    const setStartingLineup = (setNum) => {
+        positionsA = {}; positionsB = {};
+        lineupData.match.lineups.forEach(p => {
+            const pid = String(p.player_id);
+            if (p.playing_position && p.playing_position[setNum]) {
+                const zone = p.playing_position[setNum];
+                if (zone >= 1 && zone <= 6) {
+                    if (p.team_id === teamAId_param) positionsA[zone] = pid;
+                    else if (p.team_id === teamBId_param) positionsB[zone] = pid;
+                }
+            }
+        });
+    };
+
+    const rotateTeamPositions = (teamSymbol) => {
+        const current = teamSymbol === 'A' ? positionsA : positionsB;
+        const next = {};
+        next[1] = current[2]; next[6] = current[1]; next[5] = current[6]; next[4] = current[5]; next[3] = current[4]; next[2] = current[3];
+        if (teamSymbol === 'A') positionsA = next; else positionsB = next;
+    };
+
+    // Build substitution list: prefer explicit substitution_events, fall back to 'vaihto' events
+    const subs = Array.isArray(lineupData.match.substitution_events) && lineupData.match.substitution_events.length > 0
+        ? lineupData.match.substitution_events
+        : gameSortedEvents.filter(e => e.code === 'vaihto');
+
+    // Function to apply a substitution at the moment it occurs (mid-set)
+    const applySub = (sub) => {
+        const playerInId = String(sub.player_id);
+        const playerOutId = String(sub.player_2_id || sub.player_out_id || '');
+        if (!playerInId) return;
+        if (String(sub.team_id) === String(teamAId_param)) {
+            for (const pos in positionsA) {
+                if (positionsA[pos] === playerOutId) positionsA[pos] = playerInId;
+            }
+        } else if (String(sub.team_id) === String(teamBId_param)) {
+            for (const pos in positionsB) {
+                if (positionsB[pos] === playerOutId) positionsB[pos] = playerInId;
+            }
+        }
+    };
+
+    // We'll iterate events in chronological order and simulate serving
+    let currentServingTeamId = null; // team id string
+    let currentServerPlayerId = null; // player id string who is serving (P1 at that moment)
+
+    for (const event of gameSortedEvents) {
+        // Start of a set: set lineup
+        if (event.code === 'aloitajakso' || (event.period && parseInt(event.period) > 0 && event.code !== 'maali' && currentServingTeamId === null)) {
+            const setNum = parseInt(event.period, 10);
+            if (!isNaN(setNum) && setNum > 0) setStartingLineup(setNum);
+            currentServingTeamId = null; currentServerPlayerId = null;
+        }
+
+        // Apply any substitution events that occur at this wall_time
+        if (subs && subs.length > 0) {
+            subs.filter(s => s.wall_time === event.wall_time && s.period === event.period).forEach(applySub);
+        }
+
+        if (event.code === 'aloittavajoukkue') {
+            currentServingTeamId = String(event.team_id);
+            const teamPositions = currentServingTeamId === String(teamAId_param) ? positionsA : positionsB;
+            currentServerPlayerId = teamPositions[1] || null;
+            if (currentServerPlayerId && playerServingStreaks[currentServerPlayerId]) playerServingStreaks[currentServerPlayerId].currentStreak = 0;
+        } else if (event.code === 'piste') {
+            const pointWinnerId = String(event.team_id);
+            if (currentServerPlayerId && currentServingTeamId) {
+                if (String(pointWinnerId) === String(currentServingTeamId)) {
+                    // Serving team scored while same player is serving
+                    if (playerServingStreaks[currentServerPlayerId]) playerServingStreaks[currentServerPlayerId].currentStreak++;
+                } else {
+                    // Sideout: finalize current server streak, rotate new serving team, and set new server
+                    if (playerServingStreaks[currentServerPlayerId]) {
+                        playerServingStreaks[currentServerPlayerId].maxStreak = Math.max(playerServingStreaks[currentServerPlayerId].maxStreak, playerServingStreaks[currentServerPlayerId].currentStreak);
+                        playerServingStreaks[currentServerPlayerId].currentStreak = 0;
+                    }
+                    // Now the other team serves; rotation occurs for that team
+                    const newServingTeamSymbol = String(pointWinnerId) === String(teamAId_param) ? 'A' : 'B';
+                    rotateTeamPositions(newServingTeamSymbol);
+                    currentServingTeamId = pointWinnerId;
+                    const teamPositions = newServingTeamSymbol === 'A' ? positionsA : positionsB;
+                    currentServerPlayerId = teamPositions[1] || null;
+                    if (currentServerPlayerId && playerServingStreaks[currentServerPlayerId]) playerServingStreaks[currentServerPlayerId].currentStreak = 0;
+                }
+            } else {
+                // No known server yet: set serving team to point winner (first point) and set server to current P1
+                currentServingTeamId = pointWinnerId;
+                const teamPositions = String(pointWinnerId) === String(teamAId_param) ? positionsA : positionsB;
+                currentServerPlayerId = teamPositions[1] || null;
+                if (currentServerPlayerId && playerServingStreaks[currentServerPlayerId]) playerServingStreaks[currentServerPlayerId].currentStreak = 0;
+            }
+        }
+    }
+
+    // Finalize any ongoing streak
+    Object.keys(playerServingStreaks).forEach(pid => {
+        const s = playerServingStreaks[pid];
+        if (s.currentStreak && s.currentStreak > 0) s.maxStreak = Math.max(s.maxStreak, s.currentStreak);
+    });
+
+    return Object.values(playerServingStreaks).filter(p => p.maxStreak > 0).sort((a,b) => b.maxStreak - a.maxStreak);
+}
+
 // Ensure these are declared if not already, for clarity, though they are global.
 // These will be accessed by the test script.
 let teamIdOfInterest; 

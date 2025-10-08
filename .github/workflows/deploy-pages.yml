@@ -30,6 +30,8 @@ jobs:
           node tests/test_stats_calculator.js
           echo "Running lineup utils tests..."
           node tests/test_lineup_utils.js
+          echo "Running serving streaks tests..."
+          node tests/test_serving_streaks.js
 
   build-and-publish:
     name: Build and publish
