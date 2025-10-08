@@ -297,6 +297,10 @@
                 <h5>Player Points Per Set</h5>
                 <div id="advanced-player-points-set-content"><p class="text-gray-400 italic text-center">Data will appear here.</p></div>
             </div>
+            <div id="advanced-starting-positions-section" class="advanced-stats-section mb-6">
+                <h5>Starting Positions by Set</h5>
+                <div id="advanced-starting-positions-content"><p class="text-gray-400 italic text-center">Data will appear here.</p></div>
+            </div>
             <div id="advanced-leadchanges-maxleads-section" class="advanced-stats-section mb-6">
                 <h5>Lead Changes & Max Leads Per Set</h5>
                 <div id="advanced-leadchanges-maxleads-content"><p class="text-gray-400 italic text-center">Data will appear here.</p></div>
@@ -893,6 +897,35 @@
         }
 
 
+        /** Renders starting positions per set for both teams. Expects loadedGameData.match.lineups to contain playing_position mapping per set. */
+        function renderStartingPositionsTables(matchData, teamAId_param, teamBId_param, targetElementId) {
+            const contentEl = document.getElementById(targetElementId); contentEl.innerHTML = '';
+            if (!matchData || !matchData.lineups || !Array.isArray(matchData.lineups)) { contentEl.innerHTML = '<p>No lineup data available.</p>'; return; }
+            // Determine sets present in playing_position entries
+            const sets = new Set(); matchData.lineups.forEach(p => { if (p.playing_position && typeof p.playing_position === 'object') { Object.keys(p.playing_position).forEach(s => { const sn = parseInt(s); if (!isNaN(sn)) sets.add(sn); }); } });
+            const setNumbers = Array.from(sets).sort((a,b) => a - b);
+            if (setNumbers.length === 0) { contentEl.innerHTML = '<p>No starting-position information found in lineups.</p>'; return; }
+
+            // For each set, create a small table showing positions 1..6 and player (shirt + name) for Team A and Team B
+            setNumbers.forEach(setNum => {
+                const header = document.createElement('h6'); header.className = 'font-semibold text-gray-700 mb-1'; header.textContent = `Set ${setNum}`;
+                const table = document.createElement('table'); table.className = 'w-full advanced-stats-table mb-3 text-center';
+                const thead = table.createTHead(); const headRow = thead.insertRow(); ['Position','Team A (shirt - name)','Team B (shirt - name)'].forEach(t => { const th = document.createElement('th'); th.textContent = t; headRow.appendChild(th); });
+                const tbody = table.createTBody();
+                for (let pos = 1; pos <= 6; pos++) {
+                    const row = tbody.insertRow();
+                    row.insertCell().textContent = pos;
+                    // Find player for Team A in this position & set
+                    const playerA = matchData.lineups.find(p => String(p.team_id) === String(teamAId_param) && p.playing_position && p.playing_position[setNum] == pos);
+                    const playerB = matchData.lineups.find(p => String(p.team_id) === String(teamBId_param) && p.playing_position && p.playing_position[setNum] == pos);
+                    row.insertCell().textContent = playerA ? `${playerA.shirt_number} - ${playerA.player_name}` : '-';
+                    row.insertCell().textContent = playerB ? `${playerB.shirt_number} - ${playerB.player_name}` : '-';
+                }
+                contentEl.appendChild(header); contentEl.appendChild(table);
+            });
+        }
+
+
         function displayAdvancedGameStats() {
             if (!currentGameAdvancedStats) { console.warn("Advanced stats data not calculated yet."); return; }
             renderSetSummariesTable(currentGameAdvancedStats.setSummaries, 'advanced-set-summaries-content');
@@ -904,6 +937,8 @@
             renderServingStreaksTable(currentGameAdvancedStats.servingStreaks, 'advanced-serving-streaks-content');
             renderServeReceivePointsTable(currentGameAdvancedStats.serveReceivePoints, 'advanced-serve-receive-points-content');
             renderAvgPointsServiceTurnTable(currentGameAdvancedStats.avgPointsServiceTurn, 'advanced-avg-points-service-turn-content');
+            // Starting positions table (uses loadedGameData.match)
+            try { renderStartingPositionsTables(loadedGameData?.match, teamAId, teamBId, 'advanced-starting-positions-content'); } catch (e) { console.warn('Failed to render starting positions', e); }
             advancedStatsRendered = true;
         }
 
@@ -979,6 +1014,8 @@
             advancedSideoutContentEl.innerHTML = placeholderText;
             advancedPointrunsContentEl.innerHTML = placeholderText;
             advancedPlayerPointsSetContentEl.innerHTML = placeholderText;
+            // Starting positions placeholder
+            const startingPositionsEl = document.getElementById('advanced-starting-positions-content'); if (startingPositionsEl) startingPositionsEl.innerHTML = placeholderText;
             advancedLeadChangesMaxLeadsContentEl.innerHTML = placeholderText;
             advancedTimeoutPerformanceContentEl.innerHTML = placeholderText;
             advancedServingStreaksContentEl.innerHTML = placeholderText;
