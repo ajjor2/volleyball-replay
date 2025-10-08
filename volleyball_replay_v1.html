@@ -840,23 +840,35 @@
                 if (!parsedUrl.pathname.includes('getMatches')) { throw new Error('URL does not appear to be a getMatches URL.'); }
                 if (!parsedUrl.searchParams.get('team_id')) { throw new Error('URL is missing the required team_id parameter.'); }
                 
-                // Use local proxy when available (running on localhost) to avoid CORS.
-                let response, proxyData, data;
+                // Try direct fetch first (preferred). If it fails (CORS or network), fall back to local proxy when running locally, then finally to allorigins public proxy.
+                let data = null;
                 try {
-                    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-                    if (isLocal) {
-                        const localProxy = `/proxy/raw?url=${encodeURIComponent(url)}`;
-                        response = await fetch(localProxy);
-                        if (!response.ok) throw new Error(`HTTP error from local proxy! Status: ${response.status}`);
-                        data = await response.json();
-                    } else {
-                        // *** PUBLIC PROXY WRAPPER for GitHub Pages ***
+                    // Direct attempt
+                    const directResp = await fetch(url);
+                    if (!directResp.ok) throw new Error(`Direct fetch failed: ${directResp.status}`);
+                    // Try to parse as JSON
+                    data = await directResp.json();
+                } catch (directError) {
+                    // Direct fetch failed (likely CORS). Try local proxy if available.
+                    try {
+                        const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+                        if (isLocal) {
+                            const localProxy = `/proxy/raw?url=${encodeURIComponent(url)}`;
+                            const response = await fetch(localProxy);
+                            if (!response.ok) throw new Error(`HTTP error from local proxy! Status: ${response.status}`);
+                            data = await response.json();
+                        } else {
+                            throw directError; // Move to public proxy below
+                        }
+                    } catch (localProxyError) {
+                        // Final fallback: public proxy (allorigins)
                         const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
-                        response = await fetch(proxyUrl); if (!response.ok) { throw new Error(`HTTP error! Status: ${response.status}`); }
-                        proxyData = await response.json();
-                        data = JSON.parse(proxyData.contents); // allorigins wraps the response
+                        const response = await fetch(proxyUrl);
+                        if (!response.ok) throw new Error(`Public proxy HTTP error! Status: ${response.status}`);
+                        const proxyData = await response.json();
+                        data = JSON.parse(proxyData.contents);
                     }
-                } catch (e) { throw e; }
+                }
                 if (!data?.matches || !Array.isArray(data.matches)) { throw new Error('Invalid response format: Missing "matches" array.'); }
                 displayMatchList(data.matches, data.team_name); setStatusMessage(teamLoadStatusEl, `Found ${data.matches.length} matches for ${data.team_name}. Select a game to load.`, 'success');
             } catch (error) { console.error('Error loading team matches:', error); setStatusMessage(teamLoadStatusEl, `Error: ${error.message}`, 'error'); matchListDisplayAreaEl.innerHTML = '<p class="text-red-500">Could not load matches.</p>'; } 
@@ -889,21 +901,32 @@
                 if (!parsedUrl.searchParams.get('match_id')) { throw new Error('URL is missing the required match_id parameter for getMatch.'); }
                 // Use local proxy when available (running on localhost) to avoid CORS.
                 let response, proxyData, data;
+                // Try direct fetch first (preferred). Fall back to local proxy when running locally, then to allorigins public proxy.
+                let data = null;
                 try {
-                    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-                    if (isLocal) {
-                        const localProxy = `/proxy/get?url=${encodeURIComponent(url)}`; // local proxy returns { contents }
-                        response = await fetch(localProxy);
-                        if (!response.ok) throw new Error(`HTTP error from local proxy! Status: ${response.status}`);
-                        proxyData = await response.json();
-                        data = JSON.parse(proxyData.contents);
-                    } else {
+                    const directResp = await fetch(url);
+                    if (!directResp.ok) throw new Error(`Direct fetch failed: ${directResp.status}`);
+                    data = await directResp.json();
+                } catch (directError) {
+                    try {
+                        const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+                        if (isLocal) {
+                            const localProxy = `/proxy/get?url=${encodeURIComponent(url)}`; // local proxy returns { contents }
+                            const response = await fetch(localProxy);
+                            if (!response.ok) throw new Error(`HTTP error from local proxy! Status: ${response.status}`);
+                            const proxyData = await response.json();
+                            data = JSON.parse(proxyData.contents);
+                        } else {
+                            throw directError;
+                        }
+                    } catch (localProxyError) {
                         const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
-                        response = await fetch(proxyUrl); if (!response.ok) { throw new Error(`HTTP error! Status: ${response.status}`); }
-                        proxyData = await response.json();
-                        data = JSON.parse(proxyData.contents); // allorigins wraps the response
+                        const response = await fetch(proxyUrl);
+                        if (!response.ok) throw new Error(`Public proxy HTTP error! Status: ${response.status}`);
+                        const proxyData = await response.json();
+                        data = JSON.parse(proxyData.contents);
                     }
-                } catch (e) { throw e; }
+                }
                 if (!data?.match?.events || !Array.isArray(data.match.events) || !data?.match?.lineups || !Array.isArray(data.match.lineups) || !data?.match?.team_A_id || !data?.match?.team_B_id) { throw new Error('Invalid game data: Missing critical fields like events, lineups, or team IDs.'); }
                 loadedGameData = data; setStatusMessage(loadStatusEl, 'Game data loaded successfully!', 'success'); initializeGame(); replayUIContainerEl.classList.remove('opacity-50'); 
             } catch (error) { console.error('Error loading game data:', error); setStatusMessage(loadStatusEl, `Error: ${error.message}`, 'error'); loadedGameData = null; resetUIState(); } 
