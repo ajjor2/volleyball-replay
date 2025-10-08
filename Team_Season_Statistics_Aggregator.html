@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Volleyball Team Season Stats</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="js/stats_calculator.js"></script>
+    <script type="module" src="js/stats_calculator.js"></script>
     <style>
         /* Basic table styling */
         table {
@@ -188,10 +188,12 @@
             aggregateStats = {}; perGameResults = []; resultsAreaEl.innerHTML = ''; let processedCount = 0; const totalToProcess = playedMatches.length; setStatus(`Processing ${processedCount}/${totalToProcess} played matches...`, 'loading');
             for (const matchStub of playedMatches) {
                 const matchId = matchStub.match_id; if (!matchId) { console.warn("Skipping match with missing ID", matchStub); continue; }
-                const detailUrl = `${API_BASE_URL}getMatch?match_id=${matchId}`;
+                let detailUrl = `${API_BASE_URL}getMatch?match_id=${matchId}`;
                 let success = false; let resultData = null; let errorMessage = 'Unknown processing error.';
                 try {
-                    console.log(`Fetching details for match ${matchId}...`); const response = await fetch(detailUrl); if (!response.ok) { throw new Error(`HTTP ${response.status}`); } const matchDetail = await response.json();
+                    // *** PUBLIC PROXY WRAPPER for GitHub Pages ***
+                    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(detailUrl)}`;
+                    console.log(`Fetching details for match ${matchId}...`); const response = await fetch(proxyUrl); if (!response.ok) { throw new Error(`HTTP ${response.status}`); } const proxyData = await response.json(); const matchDetail = JSON.parse(proxyData.contents);
                     if (!matchDetail?.match?.events || !matchDetail?.match?.lineups) { throw new Error('Invalid data structure received.'); }
                     const gameStats = calculateGameStats(matchDetail); if (gameStats) { resultData = gameStats; aggregateGameStats(gameStats); success = true; } else { errorMessage = 'Stats calculation failed (data likely incomplete/invalid).'; console.warn(`Stats calculation failed for match ${matchId}. Skipping aggregation.`); }
                 } catch (error) { errorMessage = error.message; console.error(`Error processing match ${matchId}:`, error); setStatus(`Error processing match ${matchId}: ${errorMessage}. Skipping.`, 'error'); }
@@ -232,7 +234,9 @@
          async function loadTeamData(url) {
             setStatus('Loading match list...', 'loading'); loadTeamDataBtn.disabled = true; resultsAreaEl.innerHTML = ''; matchListAreaEl.innerHTML = ''; aggregateStats = {}; perGameResults = [];
             try {
-                const response = await fetch(url); if (!response.ok) { throw new Error(`HTTP error! Status: ${response.status}`); } const data = await response.json();
+                // *** PUBLIC PROXY WRAPPER for GitHub Pages ***
+                const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+                const response = await fetch(proxyUrl); if (!response.ok) { throw new Error(`HTTP error! Status: ${response.status}`); } const proxyData = await response.json(); const data = JSON.parse(proxyData.contents);
                 if (!data?.matches || !Array.isArray(data.matches)) { throw new Error('Invalid response format: Missing "matches" array.'); }
                 console.log(`Found ${data.matches.length} matches in list.`);
                 displayMatchList(data.matches); // Display list first

@@ -69,6 +69,17 @@ export function calculateGameStats(matchDetail) {
                 playerSetParticipation[playerOutId].subbedOut.add(period); 
                 // Do not remove from playedInSet, as they did participate
             } 
+            // Update player positions if sub happens mid-set
+            // This is a simplified model assuming the sub takes the exact position.
+            if (sub.team_id === gameStats.teamAInfo.id) {
+                for (const pos in playerPositionsA) {
+                    if (playerPositionsA[pos] === playerOutId) playerPositionsA[pos] = playerInId;
+                }
+            } else if (sub.team_id === gameStats.teamBInfo.id) {
+                for (const pos in playerPositionsB) {
+                    if (playerPositionsB[pos] === playerOutId) playerPositionsB[pos] = playerInId;
+                }
+            }
         } 
     });
 
@@ -76,67 +87,10 @@ export function calculateGameStats(matchDetail) {
     const maxSetPlayed = Math.max(1, maxSetFromLineups, maxSetFromEvents);
 
     for (const playerId in playerSetParticipation) { 
-        let setsParticipatedCount = 0;
         for (let setNum = 1; setNum <= maxSetPlayed; setNum++) {
             const participation = playerSetParticipation[playerId];
-            // Considered "played fully" if they were marked as starting and not subbed out in that set,
-            // OR if they were subbed in and not subsequently subbed out in that set.
-            // For C25, if no events, rely on lineup data.
-            if (participation.playedInSet.has(setNum)) {
-                 // If a player started a set, and was not subbed out of THAT set, they played it.
-                if (participation.started.has(setNum) && !participation.subbedOut.has(setNum)) {
-                    setsParticipatedCount++;
-                } 
-                // If a player was subbed into a set, and not subbed out of THAT set again, they played it.
-                // This handles cases where a sub plays the remainder of a set.
-                // Need to ensure this doesn't double count if they started and were subbed out then subbed back in.
-                // The simple `playedInSet.has(setNum)` is a more general "participated" flag.
-                // The test "setsPlayedFully" might be interpreted as "was on court when set ended or started and not subbed out".
-                // Let's use a simpler definition based on `playedInSet` for now and see test results.
-                // If events are empty, maxSetFromEvents will be 0.
-                // If a player is listed in lineup for sets 1,2,3,4 (P1 in tests), and events are empty, they should get 4.
-                else if (participation.subbedIn.has(setNum) && !participation.subbedOut.has(setNum)) {
-                     // This condition is tricky; if they started, got subbed out, then subbed back in,
-                     // the first condition would fail. The second would pass if they finish the set.
-                     // For now, let's simplify: if they participated (started or subbed in), and were not subbed out of that specific set.
-                     // The key is, if subbedOut.has(setNum) is true, they didn't "fully" play it in one continuous segment.
-                     // The test C9/C12 (P2/P3) expects 0 if subbed out.
-                     // P1 (C6) expects 4 (started all, never subbed out).
-                     // P2 started 1&2, subbed out in S2 by P3. P3 subbed in S2, started S3&4, subbed out S3 by P2.
-                     // P2: Started S1 (played), Started S2 (subbed out S2). Subbed In S3 (played). -> Expected 0? Actual 1.
-                     // The current test logic seems to expect 0 if a player was ever subbed out of a set they started.
-                }
-            }
-        }
-         // Simpler: count sets in playedInSet, then subtract if subbed out of that set.
-        // No, this is complex. Let's stick to the definition from problem: "sets a player is listed in the lineup for and plays from start to end without being substituted out"
-        // This matches the original logic more closely: participation.started.has(setNum) && !participation.subbedOut.has(setNum)
-        // The issue might be how subbedOut is populated or used.
-        // Let's use the provided definition: "sets a player is listed in the lineup for and plays from start to end without being substituted out"
-        // This means `playerSetParticipation[playerId].started.add(setNum)` is the base.
-        // And `!playerSetParticipation[playerId].subbedOut.has(setNum)` is the condition.
-        // This was the original logic. Why did it fail C9, C12?
-        // P2: started {1,2}, subbedIn {}, subbedOut {2}. SetsPlayedFully = 1 (Set 1). Test C9 expects 0.
-        // P3: started {3,4}, subbedIn {2}, subbedOut {3}. SetsPlayedFully = 1 (Set 4). Test C12 expects 0.
-        // This implies if they are subbed *at all* in a set they started, it's not "fully played".
-        // The original logic seems to align with "started and not subbed out".
-        // What if `maxSetPlayed` is the issue for C25?
-        // If events are empty, maxSetFromEvents = 0. maxSetFromLineups for P1 is 4. So maxSetPlayed = 4.
-        // Loop 1 to 4. P1.started has 1,2,3,4. P1.subbedOut is empty. P1.subbedIn is empty. So count = 4. This matches C25 expectation.
-        // So the original logic for setsPlayedFully seems correct based on definition and C25.
-        // Failures C9, C12 (P2, P3) are then the ones to look at.
-        // P2: Started sets 1, 2. Subbed out in set 2.
-        // P1.playerStats["P2"].setsPlayedFully should be 1 (for set 1). Test C9 expects 0. This is a test expectation mismatch.
-        // P3: Started sets 3, 4. Subbed out in set 3. (Subbed in for P2 in set 2).
-        // P1.playerStats["P3"].setsPlayedFully should be 1 (for set 4). Test C12 expects 0. Test expectation mismatch.
-        // Given the definition: "sets a player is listed in the lineup for and plays from start to end without being substituted out."
-        // The current code for setsPlayedFully IS correct according to this definition.
-        // The tests C9 and C12 seem to be interpreting "setsPlayedFully" differently, perhaps as "sets where the player was never substituted".
-        // I will proceed assuming my code's interpretation of "setsPlayedFully" is correct as per the definition.
-        // The serve count is more likely a bug.
-
-        for (let setNum = 1; setNum <= maxSetPlayed; setNum++) {
-            const participation = playerSetParticipation[playerId];
+            // Definition: "sets a player is listed in the lineup for and plays from start to end without being substituted out."
+            // This means they must start the set and not be subbed out of that set.
             if (participation.started.has(setNum) && !participation.subbedOut.has(setNum)) {
                  if (gameStats.playerStats[playerId]) gameStats.playerStats[playerId].setsPlayedFully++;
             }
@@ -153,7 +107,19 @@ export function calculateGameStats(matchDetail) {
     const rotateGameTeam = (teamIdSymbol) => { const currentPositions = teamIdSymbol === 'A' ? playerPositionsA : playerPositionsB; const newPositions = {}; newPositions[1] = currentPositions[2]; newPositions[6] = currentPositions[1]; newPositions[5] = currentPositions[6]; newPositions[4] = currentPositions[5]; newPositions[3] = currentPositions[4]; newPositions[2] = currentPositions[3]; for (let zone = 1; zone <= 6; zone++) { if (teamIdSymbol === 'A') playerPositionsA[zone] = newPositions[zone] || null; else playerPositionsB[zone] = newPositions[zone] || null; } };
     const sortedGameEvents = [...match.events].sort((a, b) => { if (!a.wall_time || !b.wall_time) return 0; if (a.wall_time < b.wall_time) return -1; if (a.wall_time > b.wall_time) return 1; return 0; });
     let eventProcessingError = false;
-    for (const event of sortedGameEvents) { try { let needsRotation = null; let pointScoredBy = null; let scorerPlayerId = null; if (event.period && parseInt(event.period) > 0 && parseInt(event.period) !== currentSet) { if (event.code !== 'maali') { currentSet = parseInt(event.period); teamAPoints = 0; teamBPoints = 0; setGameStartingLineup(currentSet); } }
+    for (const event of sortedGameEvents) { try { 
+        // Handle substitutions first to update player positions before point/serve logic
+        if (event.code === 'vaihto' && (!match.substitution_events || match.substitution_events.length === 0)) {
+            const playerInId = String(event.player_id);
+            const playerOutId = String(event.player_2_id);
+            if (event.team_id === gameStats.teamAInfo.id) {
+                for (const pos in playerPositionsA) { if (playerPositionsA[pos] === playerOutId) playerPositionsA[pos] = playerInId; }
+            } else if (event.team_id === gameStats.teamBInfo.id) {
+                for (const pos in playerPositionsB) { if (playerPositionsB[pos] === playerOutId) playerPositionsB[pos] = playerInId; }
+            }
+        }
+
+        let needsRotation = null; let pointScoredBy = null; let scorerPlayerId = null; if (event.period && parseInt(event.period) > 0 && parseInt(event.period) !== currentSet) { if (event.code !== 'maali') { currentSet = parseInt(event.period); teamAPoints = 0; teamBPoints = 0; setGameStartingLineup(currentSet); } }
         switch (event.code) { 
             case 'aloitajakso': 
                 currentSet = parseInt(event.period); teamAPoints = 0; teamBPoints = 0; 

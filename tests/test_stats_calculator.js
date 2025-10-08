@@ -412,6 +412,7 @@ console.log('--- Running tests for aggregateGameStats ---');
 // We need to ensure these are declared in this test file's scope if they are to be used by test logic.
 // The aggregateGameStats function itself, if it relies on these being truly global *within its own module*,
 // would need to be refactored. However, the prompt implies the test file sets them for its own purposes,
+
 // which means they should be declared here.
 let teamIdOfInterest; // Will be set per test group
 let aggregateStats;   // Will be reset per test group

@@ -321,7 +321,9 @@
 
 
     </div> 
-    <script>
+    <script type="module">
+        import { calculateGameStats, parseTimeToSeconds, formatSecondsToMMSS } from './js/stats_calculator.js';
+
         // --- APPLICATION LOGIC ---
         const API_BASE_URL = "https://lentopallo-api.torneopal.net/taso/rest/";
         const ALLOWED_HOSTNAME = "lentopallo-api.torneopal.net";
@@ -357,8 +359,6 @@
         let currentGameAdvancedStats = null; 
         let advancedStatsRendered = false; 
 
-        function parseTimeToSeconds(timeString) { if (!timeString || typeof timeString !== 'string') return null; const parts = timeString.split(':'); if (parts.length === 3) { const h = parseInt(parts[0], 10); const m = parseInt(parts[1], 10); const s = parseInt(parts[2], 10); if (!isNaN(h) && !isNaN(m) && !isNaN(s)) { return h * 3600 + m * 60 + s; } } return null; }
-        function formatSecondsToMMSS(totalSeconds) { if (totalSeconds === null || totalSeconds < 0 || isNaN(totalSeconds)) { return "--:--"; } const minutes = Math.floor(totalSeconds / 60); const seconds = Math.floor(totalSeconds % 60); const paddedMinutes = String(minutes).padStart(2, '0'); const paddedSeconds = String(seconds).padStart(2, '0'); return `${paddedMinutes}:${paddedSeconds}`; }
         function setStatusMessage(element, message, type = 'info') { if(element) {element.textContent = message; let className = 'mt-2 text-sm h-5 '; if (type === 'loading') className += 'status-loading'; else if (type === 'error') className += 'status-error'; else if (type === 'success') className += 'status-success'; element.className = className;} }
 
         function calculateMean(dataArray) { if (!dataArray || dataArray.length === 0) return 0; const sum = dataArray.reduce((acc, val) => acc + val, 0); return sum / dataArray.length; }
@@ -833,15 +833,32 @@
         }
 
         async function loadTeamMatches() { 
-            const url = teamMatchesUrlInput.value.trim(); if (!url) { setStatusMessage(teamLoadStatusEl, 'Please enter a Team Matches URL.', 'error'); return; }
+            let url = teamMatchesUrlInput.value.trim(); if (!url) { setStatusMessage(teamLoadStatusEl, 'Please enter a Team Matches URL.', 'error'); return; }
             setStatusMessage(teamLoadStatusEl, 'Loading team matches...', 'loading'); loadTeamMatchesBtn.disabled = true; matchListDisplayAreaEl.innerHTML = ''; 
             try {
                 let parsedUrl; try { parsedUrl = new URL(url); } catch (_) { throw new Error('Invalid URL format.'); }
                 if (!parsedUrl.pathname.includes('getMatches')) { throw new Error('URL does not appear to be a getMatches URL.'); }
                 if (!parsedUrl.searchParams.get('team_id')) { throw new Error('URL is missing the required team_id parameter.'); }
-                const response = await fetch(url); if (!response.ok) { throw new Error(`HTTP error! Status: ${response.status}`); }
-                const data = await response.json(); if (!data?.matches || !Array.isArray(data.matches)) { throw new Error('Invalid response format: Missing "matches" array.'); }
-                displayMatchList(data.matches); setStatusMessage(teamLoadStatusEl, `Found ${data.matches.length} matches. Select a game to load.`, 'success');
+                
+                // Use local proxy when available (running on localhost) to avoid CORS.
+                let response, proxyData, data;
+                try {
+                    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+                    if (isLocal) {
+                        const localProxy = `/proxy/raw?url=${encodeURIComponent(url)}`;
+                        response = await fetch(localProxy);
+                        if (!response.ok) throw new Error(`HTTP error from local proxy! Status: ${response.status}`);
+                        data = await response.json();
+                    } else {
+                        // *** PUBLIC PROXY WRAPPER for GitHub Pages ***
+                        const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+                        response = await fetch(proxyUrl); if (!response.ok) { throw new Error(`HTTP error! Status: ${response.status}`); }
+                        proxyData = await response.json();
+                        data = JSON.parse(proxyData.contents); // allorigins wraps the response
+                    }
+                } catch (e) { throw e; }
+                if (!data?.matches || !Array.isArray(data.matches)) { throw new Error('Invalid response format: Missing "matches" array.'); }
+                displayMatchList(data.matches, data.team_name); setStatusMessage(teamLoadStatusEl, `Found ${data.matches.length} matches for ${data.team_name}. Select a game to load.`, 'success');
             } catch (error) { console.error('Error loading team matches:', error); setStatusMessage(teamLoadStatusEl, `Error: ${error.message}`, 'error'); matchListDisplayAreaEl.innerHTML = '<p class="text-red-500">Could not load matches.</p>'; } 
             finally { loadTeamMatchesBtn.disabled = false; }
         }
@@ -864,13 +881,30 @@
             matchListDisplayAreaEl.appendChild(ul);
         }
         async function loadGameData(url) { 
+            if (!url) return;
             setStatusMessage(loadStatusEl, 'Loading game data...', 'loading'); loadDataBtn.disabled = true; teamLoadStatusEl.textContent = ''; resetUIState(); 
             try {
                 let parsedUrl; try { parsedUrl = new URL(url); } catch (_) { throw new Error('Invalid URL format.'); }
                 if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') { throw new Error('URL must use http or https.'); }
                 if (!parsedUrl.searchParams.get('match_id')) { throw new Error('URL is missing the required match_id parameter for getMatch.'); }
-                const response = await fetch(url); if (!response.ok) { throw new Error(`HTTP error! Status: ${response.status}`); }
-                const data = await response.json(); if (!data?.match?.events || !Array.isArray(data.match.events) || !data?.match?.lineups || !Array.isArray(data.match.lineups) || !data?.match?.team_A_id || !data?.match?.team_B_id) { throw new Error('Invalid game data: Missing critical fields like events, lineups, or team IDs.'); }
+                // Use local proxy when available (running on localhost) to avoid CORS.
+                let response, proxyData, data;
+                try {
+                    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+                    if (isLocal) {
+                        const localProxy = `/proxy/get?url=${encodeURIComponent(url)}`; // local proxy returns { contents }
+                        response = await fetch(localProxy);
+                        if (!response.ok) throw new Error(`HTTP error from local proxy! Status: ${response.status}`);
+                        proxyData = await response.json();
+                        data = JSON.parse(proxyData.contents);
+                    } else {
+                        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+                        response = await fetch(proxyUrl); if (!response.ok) { throw new Error(`HTTP error! Status: ${response.status}`); }
+                        proxyData = await response.json();
+                        data = JSON.parse(proxyData.contents); // allorigins wraps the response
+                    }
+                } catch (e) { throw e; }
+                if (!data?.match?.events || !Array.isArray(data.match.events) || !data?.match?.lineups || !Array.isArray(data.match.lineups) || !data?.match?.team_A_id || !data?.match?.team_B_id) { throw new Error('Invalid game data: Missing critical fields like events, lineups, or team IDs.'); }
                 loadedGameData = data; setStatusMessage(loadStatusEl, 'Game data loaded successfully!', 'success'); initializeGame(); replayUIContainerEl.classList.remove('opacity-50'); 
             } catch (error) { console.error('Error loading game data:', error); setStatusMessage(loadStatusEl, `Error: ${error.message}`, 'error'); loadedGameData = null; resetUIState(); } 
             finally { loadDataBtn.disabled = false; }
@@ -917,17 +951,21 @@
             teamANameEl.textContent = matchData.team_A_name || 'Team A'; statsTeamANameEl.textContent = `${matchData.team_A_name || 'Team A'} Stats`;
             teamBNameEl.textContent = matchData.team_B_name || 'Team B'; statsTeamBNameEl.textContent = `${matchData.team_B_name || 'Team B'} Stats`;
             matchDateEl.textContent = matchData.date || 'N/A'; matchTimeEl.textContent = matchData.time || 'N/A'; matchVenueEl.textContent = matchData.venue_name || 'N/A'; matchRefereeEl.textContent = matchData.referee_1_name || 'N/A'; matchAttendanceEl.textContent = matchData.attendance || '0';
-            teamATimeouts = 0; teamBTimeouts = 0; teamASubs = 0; teamBSubs = 0;
-            (matchData.events || []).forEach(event => { if (event.code === 'aikalisa') { if (event.team_id === teamAId) teamATimeouts++; else if (event.team_id === teamBId) teamBTimeouts++; } });
-            const subsEvents = matchData.substitution_events || (matchData.events || []).filter(e => e.code === 'vaihto');
-            subsEvents.forEach(sub => { if (sub.team_id === teamAId) teamASubs++; else if (sub.team_id === teamBId) teamBSubs++; });
+            
+            // Use the new stats calculator for final totals
+            const finalGameStats = calculateGameStats(loadedGameData);
+            teamATimeouts = finalGameStats?.teamAInfo?.timeouts ?? 0;
+            teamBTimeouts = finalGameStats?.teamBInfo?.timeouts ?? 0;
+            teamASubs = finalGameStats?.teamAInfo?.subs ?? 0;
+            teamBSubs = finalGameStats?.teamBInfo?.subs ?? 0;
+            teamAImpliedOpponentErrors = finalGameStats?.teamAInfo?.impliedOpponentErrors ?? 0;
+            teamBImpliedOpponentErrors = finalGameStats?.teamBInfo?.impliedOpponentErrors ?? 0;
+
             playerStats = {};
             matchData.lineups.forEach(p => { const playerIdStr = String(p.player_id); if (playerIdStr && p.team_id && p.player_name && p.shirt_number !== undefined) { playerStats[playerIdStr] = { name: p.player_name, shirt: p.shirt_number, team: p.team_id === teamAId ? 'A' : 'B', points: 0, serves: 0, isCaptain: p.captain === 'C' }; } });
             sortedEvents = [...matchData.events].sort((a, b) => { if (!a.wall_time || !b.wall_time) return 0; if (a.wall_time < b.wall_time) return -1; if (a.wall_time > b.wall_time) return 1; return 0; });
             sortedEvents.unshift({ code: "startgame", period: "0", wall_time: "00:00:00", code_fi: "Game Starting", description: "" });
-            currentEventIndex = -1; currentSet = 0; teamAPoints = 0; teamBPoints = 0; teamASets = 0; teamBSets = 0;
-            servingTeam = null; lastServingTeam = null; playerPositionsA = {}; playerPositionsB = {};
-            teamAImpliedOpponentErrors = 0; teamBImpliedOpponentErrors = 0; currentSetStartTime = null; gameHistory = [];
+            currentEventIndex = -1; currentSet = 0; teamAPoints = 0; teamBPoints = 0; teamASets = 0; teamBSets = 0; servingTeam = null; lastServingTeam = null; playerPositionsA = {}; playerPositionsB = {}; currentSetStartTime = null; gameHistory = [];
 
             const rallyDurationsData = calculateRallyDurations(sortedEvents);
             displayGenericRallyDurationBarChart(rallyDurationsData, allRalliesDurationVisualizationEl, "All Rallies");
@@ -999,7 +1037,10 @@
              if (!loadedGameData || index < 0 || index >= sortedEvents.length) return;
             const event = sortedEvents[index];
              let scorerPlayerId = null; let lostPointSide = null;
-             if (event.code === 'piste') { const scoreMatch = event.description?.match(/(\d+)-(\d+)/); if (scoreMatch) { const refPointsA = isRestoring ? gameHistory[gameHistory.length-1]?.pointsA : teamAPoints; const refPointsB = isRestoring ? gameHistory[gameHistory.length-1]?.pointsB : teamBPoints; const pointScoredByTeam = (parseInt(scoreMatch[1]) > refPointsA) ? 'A' : 'B'; if (event.player_id && String(event.player_id) !== '1') { scorerPlayerId = String(event.player_id); } else { lostPointSide = pointScoredByTeam === 'A' ? 'B' : 'A'; } } }
+             if (event.code === 'piste') { 
+                const scoreMatch = event.description?.match(/(\d+)-(\d+)/); 
+                if (scoreMatch) { const refPointsA = isRestoring ? gameHistory[gameHistory.length-1]?.pointsA : teamAPoints; const refPointsB = isRestoring ? gameHistory[gameHistory.length-1]?.pointsB : teamBPoints; const pointScoredByTeam = (parseInt(scoreMatch[1]) > refPointsA) ? 'A' : 'B'; if (event.player_id && String(event.player_id) !== '1') { scorerPlayerId = String(event.player_id); } else { lostPointSide = pointScoredByTeam === 'A' ? 'B' : 'A'; } } 
+            }
              if (!isRestoring) { if (currentEventIndex >= 0) { saveState(); } processEventForStateUpdate(event); }
              currentEventIndex = index;
             eventDescEl.textContent = event?.code_fi || event?.code || "Event"; updateScoreboard(); drawCourt(); updateSetElapsedTimeUI(event.wall_time);

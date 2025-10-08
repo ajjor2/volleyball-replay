@@ -4,8 +4,10 @@
   "description": "Volleyball statistics calculation",
   "main": "js/stats_calculator.js",
   "type": "module",
+  "homepage": "https://ajjor2.github.io/volleyball-replay",
   "scripts": {
-    "test": "node tests/test_stats_calculator.js"
+    "test": "node tests/test_stats_calculator.js",
+    "start": "node server.js"
   },
   "keywords": [],
   "author": "",
