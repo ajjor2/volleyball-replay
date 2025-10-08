@@ -851,7 +851,7 @@
                         data = await response.json();
                     } else {
                         // *** PUBLIC PROXY WRAPPER for GitHub Pages ***
-                        const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+                        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
                         response = await fetch(proxyUrl); if (!response.ok) { throw new Error(`HTTP error! Status: ${response.status}`); }
                         proxyData = await response.json();
                         data = JSON.parse(proxyData.contents); // allorigins wraps the response
