@@ -329,6 +329,81 @@
         const ALLOWED_HOSTNAME = "lentopallo-api.torneopal.net";
         const playbackSpeed = 1500;
 
+        // Network helper: try direct fetch, then local proxy (if localhost), then a list of public proxies.
+        async function fetchWithFallback(targetUrl, options = {}) {
+            const { preferLocalRaw = false, timeoutMs = 10000 } = options;
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), timeoutMs);
+            // Helper to attempt fetch and parse JSON (or throw)
+            async function tryFetch(u, parseAsAllorigins = false, parseAsThingproxy = false) {
+                try {
+                    const resp = await fetch(u, { signal: controller.signal });
+                    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+                    const txt = await resp.text();
+                    // If caller expects allorigins format, parse wrapper
+                    if (parseAsAllorigins) {
+                        try { const wrapper = JSON.parse(txt); if (wrapper && wrapper.contents) return JSON.parse(wrapper.contents); } catch (e) { throw new Error('Failed to parse allorigins response'); }
+                    }
+                    // thingproxy returns raw proxied body; try parse
+                    if (parseAsThingproxy) {
+                        try { return JSON.parse(txt); } catch (e) { throw new Error('Failed to parse thingproxy response'); }
+                    }
+                    // Default: try JSON.parse, otherwise return text as-is
+                    try { return JSON.parse(txt); } catch (e) { return txt; }
+                } catch (err) {
+                    throw err;
+                }
+            }
+
+            try {
+                // 1) Direct
+                try {
+                    const result = await tryFetch(targetUrl);
+                    clearTimeout(timeout);
+                    return result;
+                } catch (directErr) {
+                    console.debug('Direct fetch failed, will try proxies:', directErr.message);
+                }
+
+                // 2) Local proxy when running on localhost
+                try {
+                    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+                    if (isLocal) {
+                        const localUrl = preferLocalRaw ? `/proxy/raw?url=${encodeURIComponent(targetUrl)}` : `/proxy/get?url=${encodeURIComponent(targetUrl)}`;
+                        const resp = await fetch(localUrl, { signal: controller.signal });
+                        if (!resp.ok) throw new Error(`Local proxy HTTP ${resp.status}`);
+                        if (preferLocalRaw) {
+                            const parsed = await resp.json(); clearTimeout(timeout); return parsed;
+                        } else {
+                            const wrapper = await resp.json(); clearTimeout(timeout); return JSON.parse(wrapper.contents);
+                        }
+                    }
+                } catch (localErr) {
+                    console.debug('Local proxy attempt failed:', localErr.message);
+                }
+
+                // 3) Public proxies (try a few endpoints)
+                const publicProxies = [
+                    { url: (u) => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`, parseAllorigins: true },
+                    { url: (u) => `https://thingproxy.freeboard.io/fetch/${u}`, parseThingproxy: true }
+                ];
+                for (const p of publicProxies) {
+                    try {
+                        const proxyUrl = p.url(targetUrl);
+                        const result = await tryFetch(proxyUrl, p.parseAllorigins, p.parseThingproxy);
+                        clearTimeout(timeout);
+                        return result;
+                    } catch (proxyErr) {
+                        console.debug(`Public proxy ${p.url.name || 'proxy'} failed:`, proxyErr.message);
+                    }
+                }
+
+                throw new Error('All network attempts failed');
+            } finally {
+                clearTimeout(timeout);
+            }
+        }
+
         let teamMatchesUrlInput, loadTeamMatchesBtn, teamLoadStatusEl, matchListDisplayAreaEl,
             gameUrlInput, loadDataBtn, loadStatusEl, replayUIContainerEl, scoreboardEl, matchInfoEl,
             matchDateEl, matchTimeEl, matchVenueEl, matchRefereeEl, matchAttendanceEl, setElapsedTimeEl,
@@ -840,35 +915,8 @@
                 if (!parsedUrl.pathname.includes('getMatches')) { throw new Error('URL does not appear to be a getMatches URL.'); }
                 if (!parsedUrl.searchParams.get('team_id')) { throw new Error('URL is missing the required team_id parameter.'); }
                 
-                // Try direct fetch first (preferred). If it fails (CORS or network), fall back to local proxy when running locally, then finally to allorigins public proxy.
-                let data = null;
-                try {
-                    // Direct attempt
-                    const directResp = await fetch(url);
-                    if (!directResp.ok) throw new Error(`Direct fetch failed: ${directResp.status}`);
-                    // Try to parse as JSON
-                    data = await directResp.json();
-                } catch (directError) {
-                    // Direct fetch failed (likely CORS). Try local proxy if available.
-                    try {
-                        const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-                        if (isLocal) {
-                            const localProxy = `/proxy/raw?url=${encodeURIComponent(url)}`;
-                            const response = await fetch(localProxy);
-                            if (!response.ok) throw new Error(`HTTP error from local proxy! Status: ${response.status}`);
-                            data = await response.json();
-                        } else {
-                            throw directError; // Move to public proxy below
-                        }
-                    } catch (localProxyError) {
-                        // Final fallback: public proxy (allorigins)
-                        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
-                        const response = await fetch(proxyUrl);
-                        if (!response.ok) throw new Error(`Public proxy HTTP error! Status: ${response.status}`);
-                        const proxyData = await response.json();
-                        data = JSON.parse(proxyData.contents);
-                    }
-                }
+                // Use fetchWithFallback to attempt direct -> local proxy -> public proxies
+                const data = await fetchWithFallback(url, { preferLocalRaw: true, timeoutMs: 12000 });
                 if (!data?.matches || !Array.isArray(data.matches)) { throw new Error('Invalid response format: Missing "matches" array.'); }
                 displayMatchList(data.matches, data.team_name); setStatusMessage(teamLoadStatusEl, `Found ${data.matches.length} matches for ${data.team_name}. Select a game to load.`, 'success');
             } catch (error) { console.error('Error loading team matches:', error); setStatusMessage(teamLoadStatusEl, `Error: ${error.message}`, 'error'); matchListDisplayAreaEl.innerHTML = '<p class="text-red-500">Could not load matches.</p>'; } 
@@ -899,34 +947,8 @@
                 let parsedUrl; try { parsedUrl = new URL(url); } catch (_) { throw new Error('Invalid URL format.'); }
                 if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') { throw new Error('URL must use http or https.'); }
                 if (!parsedUrl.searchParams.get('match_id')) { throw new Error('URL is missing the required match_id parameter for getMatch.'); }
-                // Use local proxy when available (running on localhost) to avoid CORS.
-                let response, proxyData, data;
-                // Try direct fetch first (preferred). Fall back to local proxy when running locally, then to allorigins public proxy.
-                let data = null;
-                try {
-                    const directResp = await fetch(url);
-                    if (!directResp.ok) throw new Error(`Direct fetch failed: ${directResp.status}`);
-                    data = await directResp.json();
-                } catch (directError) {
-                    try {
-                        const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-                        if (isLocal) {
-                            const localProxy = `/proxy/get?url=${encodeURIComponent(url)}`; // local proxy returns { contents }
-                            const response = await fetch(localProxy);
-                            if (!response.ok) throw new Error(`HTTP error from local proxy! Status: ${response.status}`);
-                            const proxyData = await response.json();
-                            data = JSON.parse(proxyData.contents);
-                        } else {
-                            throw directError;
-                        }
-                    } catch (localProxyError) {
-                        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
-                        const response = await fetch(proxyUrl);
-                        if (!response.ok) throw new Error(`Public proxy HTTP error! Status: ${response.status}`);
-                        const proxyData = await response.json();
-                        data = JSON.parse(proxyData.contents);
-                    }
-                }
+                // Use fetchWithFallback to attempt direct -> local proxy -> public proxies
+                const data = await fetchWithFallback(url, { preferLocalRaw: false, timeoutMs: 12000 });
                 if (!data?.match?.events || !Array.isArray(data.match.events) || !data?.match?.lineups || !Array.isArray(data.match.lineups) || !data?.match?.team_A_id || !data?.match?.team_B_id) { throw new Error('Invalid game data: Missing critical fields like events, lineups, or team IDs.'); }
                 loadedGameData = data; setStatusMessage(loadStatusEl, 'Game data loaded successfully!', 'success'); initializeGame(); replayUIContainerEl.classList.remove('opacity-50'); 
             } catch (error) { console.error('Error loading game data:', error); setStatusMessage(loadStatusEl, `Error: ${error.message}`, 'error'); loadedGameData = null; resetUIState(); } 

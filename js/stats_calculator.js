@@ -56,6 +56,10 @@ export function calculateGameStats(matchDetail) {
     });
     if (!lineupIsValid) { console.error(`Calculation failed for match ${gameStats.matchId}: Invalid lineup entries found.`); return null; }
 
+    // Track current player positions on court for both teams. Initialize before processing substitutions/events.
+    let playerPositionsA = {};
+    let playerPositionsB = {};
+
     substitutionLog.forEach(sub => { 
         const period = parseInt(sub.period, 10); 
         if (!isNaN(period) && period > 0) { 
@@ -102,7 +106,7 @@ export function calculateGameStats(matchDetail) {
     // substitutionLog for subs count already includes filtered events if substitution_events is missing
     gameStats.teamAInfo.subs = 0; gameStats.teamBInfo.subs = 0; // Reset before counting
     substitutionLog.forEach(sub => { if (sub.team_id === gameStats.teamAInfo.id) gameStats.teamAInfo.subs++; else if (sub.team_id === gameStats.teamBInfo.id) gameStats.teamBInfo.subs++; });
-    let currentSet = 0; let teamAPoints = 0; let teamBPoints = 0; let servingTeam = null; let lastServingTeam = null; let playerPositionsA = {}; let playerPositionsB = {};
+    let currentSet = 0; let teamAPoints = 0; let teamBPoints = 0; let servingTeam = null; let lastServingTeam = null;
     const setGameStartingLineup = (setNum) => { playerPositionsA = {}; playerPositionsB = {}; match.lineups.forEach(p => { const pid = String(p.player_id); if (p.playing_position?.[setNum]) { const zone = p.playing_position[setNum]; if (zone >= 1 && zone <= 6) { if (p.team_id === gameStats.teamAInfo.id) playerPositionsA[zone] = pid; else playerPositionsB[zone] = pid; } } }); };
     const rotateGameTeam = (teamIdSymbol) => { const currentPositions = teamIdSymbol === 'A' ? playerPositionsA : playerPositionsB; const newPositions = {}; newPositions[1] = currentPositions[2]; newPositions[6] = currentPositions[1]; newPositions[5] = currentPositions[6]; newPositions[4] = currentPositions[5]; newPositions[3] = currentPositions[4]; newPositions[2] = currentPositions[3]; for (let zone = 1; zone <= 6; zone++) { if (teamIdSymbol === 'A') playerPositionsA[zone] = newPositions[zone] || null; else playerPositionsB[zone] = newPositions[zone] || null; } };
     const sortedGameEvents = [...match.events].sort((a, b) => { if (!a.wall_time || !b.wall_time) return 0; if (a.wall_time < b.wall_time) return -1; if (a.wall_time > b.wall_time) return 1; return 0; });

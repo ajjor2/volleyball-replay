@@ -84,6 +84,30 @@
         const API_BASE_URL = "https://lentopallo-api.torneopal.net/taso/rest/";
         const ALLOWED_HOSTNAME = "lentopallo-api.torneopal.net"; // Optional: Restrict source domain for security
 
+        // Network helper: try direct fetch, then local proxy (if localhost), then a list of public proxies.
+        async function fetchWithFallback(targetUrl, options = {}) {
+            const { preferLocalRaw = false, timeoutMs = 10000 } = options;
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), timeoutMs);
+            async function tryFetch(u, parseAsAllorigins = false, parseAsThingproxy = false) {
+                try {
+                    const resp = await fetch(u, { signal: controller.signal });
+                    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+                    const txt = await resp.text();
+                    if (parseAsAllorigins) { try { const wrapper = JSON.parse(txt); if (wrapper && wrapper.contents) return JSON.parse(wrapper.contents); } catch (e) { throw new Error('Failed to parse allorigins response'); } }
+                    if (parseAsThingproxy) { try { return JSON.parse(txt); } catch (e) { throw new Error('Failed to parse thingproxy response'); } }
+                    try { return JSON.parse(txt); } catch (e) { return txt; }
+                } catch (err) { throw err; }
+            }
+            try {
+                try { const r = await tryFetch(targetUrl); clearTimeout(timeout); return r; } catch (directErr) { console.debug('Direct fetch failed', directErr.message); }
+                try { const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'; if (isLocal) { const localUrl = preferLocalRaw ? `/proxy/raw?url=${encodeURIComponent(targetUrl)}` : `/proxy/get?url=${encodeURIComponent(targetUrl)}`; const resp = await fetch(localUrl, { signal: controller.signal }); if (!resp.ok) throw new Error(`Local proxy HTTP ${resp.status}`); if (preferLocalRaw) { const parsed = await resp.json(); clearTimeout(timeout); return parsed; } else { const wrapper = await resp.json(); clearTimeout(timeout); return JSON.parse(wrapper.contents); } } } catch (localErr) { console.debug('Local proxy failed', localErr.message); }
+                const publicProxies = [ { url: (u) => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`, parseAllorigins: true }, { url: (u) => `https://thingproxy.freeboard.io/fetch/${u}`, parseThingproxy: true } ];
+                for (const p of publicProxies) { try { const proxyUrl = p.url(targetUrl); const result = await tryFetch(proxyUrl, p.parseAllorigins, p.parseThingproxy); clearTimeout(timeout); return result; } catch (proxyErr) { console.debug('Public proxy failed', proxyErr.message); } }
+                throw new Error('All network attempts failed');
+            } finally { clearTimeout(timeout); }
+        }
+
         // --- DOM Elements ---
         const teamMatchesUrlInput = document.getElementById('team-matches-url');
         const loadTeamDataBtn = document.getElementById('load-team-data-btn');
@@ -191,45 +215,13 @@
                 let detailUrl = `${API_BASE_URL}getMatch?match_id=${matchId}`;
                 let success = false; let resultData = null; let errorMessage = 'Unknown processing error.';
                 try {
-                        // Try direct fetch first, then local proxy (when localhost), then public proxy
-                        try {
-                            const directResp = await fetch(detailUrl);
-                            if (!directResp.ok) throw new Error(`Direct fetch failed: ${directResp.status}`);
-                            const matchDetail = await directResp.json();
-                            if (!matchDetail?.match?.events || !matchDetail?.match?.lineups) throw new Error('Invalid data structure received.');
-                            const gameStats = calculateGameStats(matchDetail);
-                            if (gameStats) { resultData = gameStats; aggregateGameStats(gameStats); success = true; }
-                            else { errorMessage = 'Stats calculation failed (data likely incomplete/invalid).'; }
-                        } catch (directErr) {
-                            try {
-                                const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-                                if (isLocal) {
-                                    const localProxy = `/proxy/get?url=${encodeURIComponent(detailUrl)}`;
-                                    const response = await fetch(localProxy);
-                                    if (!response.ok) throw new Error(`Local proxy HTTP error: ${response.status}`);
-                                    const proxyData = await response.json();
-                                    const matchDetail = JSON.parse(proxyData.contents);
-                                    if (!matchDetail?.match?.events || !matchDetail?.match?.lineups) throw new Error('Invalid data structure received from local proxy.');
-                                    const gameStats = calculateGameStats(matchDetail);
-                                    if (gameStats) { resultData = gameStats; aggregateGameStats(gameStats); success = true; }
-                                    else { errorMessage = 'Stats calculation failed (data likely incomplete/invalid).'; }
-                                } else {
-                                    throw directErr;
-                                }
-                            } catch (localErr) {
-                                // Final fallback to public proxy
-                                const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(detailUrl)}`;
-                                const response = await fetch(proxyUrl);
-                                if (!response.ok) throw new Error(`Public proxy HTTP error: ${response.status}`);
-                                const proxyData = await response.json();
-                                const matchDetail = JSON.parse(proxyData.contents);
-                                if (!matchDetail?.match?.events || !matchDetail?.match?.lineups) throw new Error('Invalid data structure received from public proxy.');
-                                const gameStats = calculateGameStats(matchDetail);
-                                if (gameStats) { resultData = gameStats; aggregateGameStats(gameStats); success = true; }
-                                else { errorMessage = 'Stats calculation failed (data likely incomplete/invalid).'; }
-                            }
-                        }
-                } catch (error) { errorMessage = error.message; console.error(`Error processing match ${matchId}:`, error); setStatus(`Error processing match ${matchId}: ${errorMessage}. Skipping.`, 'error'); }
+                    // Use the shared network helper which will try direct -> local proxy -> public proxies
+                    const matchDetail = await fetchWithFallback(detailUrl, { preferLocalRaw: false, timeoutMs: 12000 });
+                    if (!matchDetail?.match?.events || !matchDetail?.match?.lineups) throw new Error('Invalid data structure received.');
+                    const gameStats = calculateGameStats(matchDetail);
+                    if (gameStats) { resultData = gameStats; aggregateGameStats(gameStats); success = true; }
+                    else { errorMessage = 'Stats calculation failed (data likely incomplete/invalid).'; }
+                } catch (error) { errorMessage = error?.message || 'Unknown error'; console.error(`Error processing match ${matchId}:`, error); setStatus(`Error processing match ${matchId}: ${errorMessage}. Skipping.`, 'error'); }
                 perGameResults.push({ success: success, data: success ? resultData : null, matchStub: matchStub, error: success ? null : errorMessage });
                 processedCount++; setStatus(`Processing ${processedCount}/${totalToProcess} played matches...`, 'loading');
             } // End loop
@@ -267,32 +259,8 @@
          async function loadTeamData(url) {
             setStatus('Loading match list...', 'loading'); loadTeamDataBtn.disabled = true; resultsAreaEl.innerHTML = ''; matchListAreaEl.innerHTML = ''; aggregateStats = {}; perGameResults = [];
             try {
-                // Try direct fetch first, then local proxy (when localhost), then public proxy
-                let data = null;
-                try {
-                    const directResp = await fetch(url);
-                    if (!directResp.ok) throw new Error(`Direct fetch failed: ${directResp.status}`);
-                    data = await directResp.json();
-                } catch (directErr) {
-                    try {
-                        const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-                        if (isLocal) {
-                            const localProxy = `/proxy/get?url=${encodeURIComponent(url)}`;
-                            const response = await fetch(localProxy);
-                            if (!response.ok) throw new Error(`Local proxy HTTP error: ${response.status}`);
-                            const proxyData = await response.json();
-                            data = JSON.parse(proxyData.contents);
-                        } else {
-                            throw directErr;
-                        }
-                    } catch (localErr) {
-                        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
-                        const response = await fetch(proxyUrl);
-                        if (!response.ok) throw new Error(`Public proxy HTTP error: ${response.status}`);
-                        const proxyData = await response.json();
-                        data = JSON.parse(proxyData.contents);
-                    }
-                }
+                // Use fetchWithFallback to retrieve list
+                const data = await fetchWithFallback(url, { preferLocalRaw: false, timeoutMs: 12000 });
                 if (!data?.matches || !Array.isArray(data.matches)) { throw new Error('Invalid response format: Missing "matches" array.'); }
                 console.log(`Found ${data.matches.length} matches in list.`);
                 displayMatchList(data.matches); // Display list first
