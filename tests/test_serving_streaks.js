@@ -30,19 +30,21 @@ const synthetic = {
 };
 
 const streaks = calculateServingStreaks(synthetic.match.events, synthetic, 'A', 'B');
-// We expect A1 to have maxStreak 2 (served and team scored twice), B1 to have maxStreak 2 or 3 depending on rotation logic; according to implementation, B1 should get a streak of 2 or 1.
-// Let's assert top values exist for team A and team B in returned array.
 
-// Find by player id mapping via shirt numbers
-const byId = {};
-streaks.forEach(s => { byId[s.name] = s; });
+// Expect exact streaks produced by the simulation:
+// - Alice (A1) serves first and team scores twice -> streak 2 in set 1
+// - After sideout, rotation makes B2 (Bill) serve; B scores 3 consecutive points (2-3) -> streak 3 in set 1
 
-// Alice should exist
-const alice = Object.values(streaks).find(s => s.name === 'Alice');
-assertEqual(alice && alice.maxStreak > 0, true, 'Alice has a serving streak');
+function findByName(arr, name) { return arr.find(x => x.name === name); }
 
-// Bob should exist
-const bob = Object.values(streaks).find(s => s.name === 'Bob');
-assertEqual(bob && bob.maxStreak > 0, true, 'Bob has a serving streak');
+const alice = findByName(streaks, 'Alice');
+assertEqual(Boolean(alice), true, 'Alice streak entry exists');
+assertEqual(alice && alice.streak, 2, 'Alice streak equals 2');
+assertEqual(alice && alice.setNum, 1, 'Alice streak set is 1');
 
-console.log('Serving streaks test completed.');
+const bill = findByName(streaks, 'Bill');
+assertEqual(Boolean(bill), true, 'Bill streak entry exists');
+assertEqual(bill && bill.streak, 3, 'Bill streak equals 3');
+assertEqual(bill && bill.setNum, 1, 'Bill streak set is 1');
+
+console.log('Serving streaks test (exact values) completed.');

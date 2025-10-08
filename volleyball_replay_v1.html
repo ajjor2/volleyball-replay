@@ -818,35 +818,57 @@
         function renderServingStreaksTable(streakData, targetElementId) {
             const contentEl = document.getElementById(targetElementId); contentEl.innerHTML = '';
             if (!streakData || streakData.length === 0) { contentEl.innerHTML = '<p>No serving streak data available.</p>'; return; }
-            // Group by team
+
+            // Group by team and then sort by streak descending
             const byTeam = { A: [], B: [] };
-            streakData.forEach(p => { if (p && p.teamSymbol) { if (p.teamSymbol === 'A') byTeam.A.push(p); else byTeam.B.push(p); } });
-            byTeam.A.sort((a,b) => b.maxStreak - a.maxStreak); byTeam.B.sort((a,b) => b.maxStreak - a.maxStreak);
+            streakData.forEach(s => { if (!s) return; if (s.teamSymbol === 'A') byTeam.A.push(s); else byTeam.B.push(s); });
+            byTeam.A.sort((a,b) => b.streak - a.streak); byTeam.B.sort((a,b) => b.streak - a.streak);
 
             const topContainer = document.createElement('div'); topContainer.className = 'grid grid-cols-1 md:grid-cols-2 gap-4 mb-4';
             const makeTeamCard = (teamSymbol, arr) => {
                 const card = document.createElement('div'); card.className = 'p-2 border rounded';
                 const title = document.createElement('div'); title.className = 'font-semibold mb-1'; title.textContent = teamSymbol === 'A' ? (teamANameEl.textContent || 'Team A') : (teamBNameEl.textContent || 'Team B');
                 card.appendChild(title);
-                if (arr.length === 0) { const p = document.createElement('p'); p.className = 'text-sm text-gray-500'; p.textContent = 'No serving streaks.'; card.appendChild(p); }
-                else {
+                if (arr.length === 0) {
+                    const p = document.createElement('p'); p.className = 'text-sm text-gray-500'; p.textContent = 'No serving streaks.'; card.appendChild(p);
+                } else {
+                    // Show top 1 for the small card (if multiple, show the best)
                     const best = arr[0];
-                    const p = document.createElement('p'); p.innerHTML = `<strong>${best.shirt} - ${best.name}</strong> — Longest serving streak: <strong>${best.maxStreak}</strong>`;
+                    const p = document.createElement('p'); p.innerHTML = `<strong>${best.shirt} - ${best.name}</strong> — Longest serving streak: <strong>${best.streak}</strong> (Set ${best.setNum})`;
                     card.appendChild(p);
+                    if (arr.length > 1) {
+                        const sub = document.createElement('div'); sub.className = 'text-sm text-gray-600 mt-1'; sub.textContent = `${arr.length} streaks recorded`; card.appendChild(sub);
+                    }
                 }
                 return card;
             };
             topContainer.appendChild(makeTeamCard('A', byTeam.A)); topContainer.appendChild(makeTeamCard('B', byTeam.B));
             contentEl.appendChild(topContainer);
 
-            // Full list table
+            // Full list table (all streaks)
             const table = document.createElement('table'); table.className = 'w-full md:w-3/4 lg:w-2/3 mx-auto advanced-stats-table';
-            const thead = table.createTHead(); const headerRow = thead.insertRow(); ["#", "Player", "Team", "Longest Serving Streak (Team Pts)"].forEach(text => { const th = document.createElement('th'); th.textContent = text; headerRow.appendChild(th); });
+            const thead = table.createTHead(); const headerRow = thead.insertRow(); ["#", "Player (Shirt - Name)", "Team", "Set", "Streak (consecutive team points)"]
+                .forEach(text => { const th = document.createElement('th'); th.textContent = text; headerRow.appendChild(th); });
             const tbody = table.createTBody();
+
             let idx = 1;
-            streakData.forEach(p => { if (p.maxStreak > 0) { const row = tbody.insertRow(); row.insertCell().textContent = idx++; row.insertCell().textContent = `${p.shirt} - ${p.name}`; row.insertCell().textContent = p.teamSymbol === 'A' ? (teamANameEl.textContent || 'Team A') : (teamBNameEl.textContent || 'Team B'); row.insertCell().textContent = p.maxStreak; row.cells[3].classList.add('text-center'); } });
-            if (tbody.rows.length === 0) { const p = document.createElement('p'); p.className = 'text-center text-gray-500'; p.textContent = 'No serving streaks of 1+ point found.'; contentEl.appendChild(p); }
-            else { contentEl.appendChild(table); }
+            const all = [...byTeam.A, ...byTeam.B];
+            all.sort((a,b) => b.streak - a.streak || a.teamSymbol.localeCompare(b.teamSymbol));
+            all.forEach(s => {
+                const row = tbody.insertRow();
+                row.insertCell().textContent = idx++;
+                row.insertCell().textContent = `${s.shirt} - ${s.name}`;
+                row.insertCell().textContent = s.teamSymbol === 'A' ? (teamANameEl.textContent || 'Team A') : (teamBNameEl.textContent || 'Team B');
+                row.insertCell().textContent = s.setNum || '-';
+                row.insertCell().textContent = s.streak;
+                row.cells[4].classList.add('text-center');
+            });
+
+            if (tbody.rows.length === 0) {
+                const p = document.createElement('p'); p.className = 'text-center text-gray-500'; p.textContent = 'No serving streaks of length 2+ found.'; contentEl.appendChild(p);
+            } else {
+                contentEl.appendChild(table);
+            }
         }
 
         function renderServeReceivePointsTable(data, targetElementId) {
