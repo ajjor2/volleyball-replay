@@ -338,6 +338,28 @@
             </div>
         </div>
 
+        <div id="ai-analysis-container" class="mt-6 border-t border-gray-300 pt-4" style="display: none;">
+            <h2 class="text-xl font-bold text-center mb-4 text-gray-800">AI-Powered Game Analysis</h2>
+
+            <div class="mb-6 p-4 border border-gray-300 rounded-md bg-gray-50">
+                <label for="openrouter-api-key" class="block text-sm font-medium text-gray-700 mb-1">OpenRouter.ai API Key:</label>
+                <div class="flex space-x-2">
+                    <input type="password" id="openrouter-api-key" class="flex-grow p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="Enter your OpenRouter.ai API key here">
+                    <button id="generate-ai-analysis-btn" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-md transition duration-150 ease-in-out whitespace-nowrap" disabled>
+                        Generate Analysis
+                    </button>
+                </div>
+                 <div class="mt-2 text-xs text-gray-500">
+                    Your key is saved in your browser's local storage and is never sent to our servers. Get a key from <a href="https://openrouter.ai/" target="_blank" class="text-indigo-600 hover:underline">OpenRouter.ai</a>.
+                </div>
+                <div id="ai-analysis-status" class="mt-2 text-sm h-5"></div>
+            </div>
+
+            <div id="ai-analysis-output-area" class="p-4 border border-gray-200 rounded-md bg-gray-50 min-h-[150px]">
+                <p class="text-center text-gray-500">AI analysis will appear here.</p>
+            </div>
+        </div>
+
 
     </div> 
     <script type="module">
