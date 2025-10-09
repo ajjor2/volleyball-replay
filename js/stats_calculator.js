@@ -56,6 +56,10 @@ export function calculateGameStats(matchDetail) {
     });
     if (!lineupIsValid) { console.error(`Calculation failed for match ${gameStats.matchId}: Invalid lineup entries found.`); return null; }
 
+    // Track current player positions on court for both teams. Initialize before processing substitutions/events.
+    let playerPositionsA = {};
+    let playerPositionsB = {};
+
     substitutionLog.forEach(sub => { 
         const period = parseInt(sub.period, 10); 
         if (!isNaN(period) && period > 0) { 
@@ -102,7 +106,7 @@ export function calculateGameStats(matchDetail) {
     // substitutionLog for subs count already includes filtered events if substitution_events is missing
     gameStats.teamAInfo.subs = 0; gameStats.teamBInfo.subs = 0; // Reset before counting
     substitutionLog.forEach(sub => { if (sub.team_id === gameStats.teamAInfo.id) gameStats.teamAInfo.subs++; else if (sub.team_id === gameStats.teamBInfo.id) gameStats.teamBInfo.subs++; });
-    let currentSet = 0; let teamAPoints = 0; let teamBPoints = 0; let servingTeam = null; let lastServingTeam = null; let playerPositionsA = {}; let playerPositionsB = {};
+    let currentSet = 0; let teamAPoints = 0; let teamBPoints = 0; let servingTeam = null; let lastServingTeam = null;
     const setGameStartingLineup = (setNum) => { playerPositionsA = {}; playerPositionsB = {}; match.lineups.forEach(p => { const pid = String(p.player_id); if (p.playing_position?.[setNum]) { const zone = p.playing_position[setNum]; if (zone >= 1 && zone <= 6) { if (p.team_id === gameStats.teamAInfo.id) playerPositionsA[zone] = pid; else playerPositionsB[zone] = pid; } } }); };
     const rotateGameTeam = (teamIdSymbol) => { const currentPositions = teamIdSymbol === 'A' ? playerPositionsA : playerPositionsB; const newPositions = {}; newPositions[1] = currentPositions[2]; newPositions[6] = currentPositions[1]; newPositions[5] = currentPositions[6]; newPositions[4] = currentPositions[5]; newPositions[3] = currentPositions[4]; newPositions[2] = currentPositions[3]; for (let zone = 1; zone <= 6; zone++) { if (teamIdSymbol === 'A') playerPositionsA[zone] = newPositions[zone] || null; else playerPositionsB[zone] = newPositions[zone] || null; } };
     const sortedGameEvents = [...match.events].sort((a, b) => { if (!a.wall_time || !b.wall_time) return 0; if (a.wall_time < b.wall_time) return -1; if (a.wall_time > b.wall_time) return 1; return 0; });
@@ -207,6 +211,165 @@ export function calculateGameStats(matchDetail) {
     console.log(`Finished calculating stats for match ID: ${match.match_id}`);
     console.log(`Returning gameStats for match ${match.match_id}:`, JSON.parse(JSON.stringify(gameStats))); // Log final calculated object
     return gameStats;
+}
+
+/**
+ * Calculate longest serving streaks per player given game events and lineup data.
+ * Returns array of { name, shirt, teamSymbol, maxStreak } sorted by descending maxStreak.
+ */
+export function calculateServingStreaks(gameSortedEvents, lineupData, teamAId_param, teamBId_param) {
+    // New behavior: return all serving streaks of length >= 2.
+    // Each entry: { playerId, name, shirt, teamSymbol, setNum, streak }
+    if (!lineupData || !lineupData.match || !Array.isArray(lineupData.match.lineups) || !Array.isArray(gameSortedEvents)) return [];
+
+    // Map playerId -> meta info
+    const playerInfo = {};
+    lineupData.match.lineups.forEach(p => {
+        const pid = String(p.player_id);
+        playerInfo[pid] = { name: p.player_name || '', shirt: p.shirt_number || '', teamSymbol: p.team_id === teamAId_param ? 'A' : 'B', rawTeamId: p.team_id };
+    });
+
+    // Helper to find player meta if initial map didn't include it (handles id type mismatches)
+    const getPlayerMeta = (pid) => {
+        const spid = String(pid);
+        if (playerInfo[spid]) return playerInfo[spid];
+        // Try to find in lineupData by matching loosely
+        const found = lineupData.match.lineups.find(p => String(p.player_id) === spid || p.player_id === pid || String(p.player_id) === String(Number(spid)));
+        if (found) {
+            const meta = { name: found.player_name || '', shirt: found.shirt_number || '', teamSymbol: found.team_id === teamAId_param ? 'A' : 'B', rawTeamId: found.team_id };
+            playerInfo[spid] = meta; // cache
+            return meta;
+        }
+        return { name: '', shirt: '', teamSymbol: '', rawTeamId: null };
+    };
+
+    let positionsA = {};
+    let positionsB = {};
+
+    const setStartingLineup = (setNum) => {
+        positionsA = {}; positionsB = {};
+        lineupData.match.lineups.forEach(p => {
+            const pid = String(p.player_id);
+            if (p.playing_position && p.playing_position[setNum]) {
+                const zone = p.playing_position[setNum];
+                if (zone >= 1 && zone <= 6) {
+                    if (p.team_id === teamAId_param) positionsA[zone] = pid;
+                    else if (p.team_id === teamBId_param) positionsB[zone] = pid;
+                }
+            }
+        });
+    };
+
+    const rotateTeamPositions = (teamSymbol) => {
+        const current = teamSymbol === 'A' ? positionsA : positionsB;
+        const next = {};
+        next[1] = current[2]; next[6] = current[1]; next[5] = current[6]; next[4] = current[5]; next[3] = current[4]; next[2] = current[3];
+        if (teamSymbol === 'A') positionsA = next; else positionsB = next;
+    };
+
+    const subs = Array.isArray(lineupData.match.substitution_events) && lineupData.match.substitution_events.length > 0
+        ? lineupData.match.substitution_events
+        : gameSortedEvents.filter(e => e.code === 'vaihto');
+
+    const applySub = (sub) => {
+        const playerInId = String(sub.player_id);
+        const playerOutId = String(sub.player_2_id || sub.player_out_id || '');
+        if (!playerInId) return;
+        if (String(sub.team_id) === String(teamAId_param)) {
+            for (const pos in positionsA) {
+                if (positionsA[pos] === playerOutId) positionsA[pos] = playerInId;
+            }
+        } else if (String(sub.team_id) === String(teamBId_param)) {
+            for (const pos in positionsB) {
+                if (positionsB[pos] === playerOutId) positionsB[pos] = playerInId;
+            }
+        }
+    };
+
+    let currentServingTeamId = null;
+    let currentServerPlayerId = null;
+    let currentSetNum = null;
+    let lastSeenPeriod = null;
+    // Track current server's consecutive team points
+    let currentServerStreak = 0;
+
+    const recordedStreaks = [];
+
+    for (const event of gameSortedEvents) {
+        // Detect set start
+        if (event.code === 'aloitajakso' || (event.period && parseInt(event.period) > 0 && event.code !== 'maali' && currentSetNum === null)) {
+            const s = parseInt(event.period, 10);
+            if (!isNaN(s) && s > 0) {
+                currentSetNum = s;
+                setStartingLineup(s);
+            }
+            currentServingTeamId = null; currentServerPlayerId = null; currentServerStreak = 0;
+        }
+
+        // Track last seen period for better set number detection
+        if (event && event.period) {
+            const pp = parseInt(event.period, 10);
+            if (!isNaN(pp) && pp > 0) lastSeenPeriod = pp;
+        }
+
+        // Apply substitutions that match the event timing
+        if (subs && subs.length > 0) subs.filter(s => s.wall_time === event.wall_time && s.period === event.period).forEach(applySub);
+
+        if (event.code === 'aloittavajoukkue') {
+            currentServingTeamId = String(event.team_id);
+            const teamPositions = currentServingTeamId === String(teamAId_param) ? positionsA : positionsB;
+            currentServerPlayerId = teamPositions[1] || null;
+            currentServerStreak = 0;
+        } else if (event.code === 'piste') {
+            const pointWinnerId = String(event.team_id);
+            // If we know the current server and serving team
+            if (currentServerPlayerId && currentServingTeamId) {
+                if (String(pointWinnerId) === String(currentServingTeamId)) {
+                    // Serving team scored while the same player was serving
+                    currentServerStreak++;
+                } else {
+                    // Sideout: record the previous server streak if it's >= 2
+                    if (currentServerPlayerId && currentServerStreak >= 2) {
+                        const meta = getPlayerMeta(currentServerPlayerId);
+                        const setNumToRecord = currentSetNum || (event && event.period ? parseInt(event.period, 10) : lastSeenPeriod) || 1;
+                        recordedStreaks.push({ playerId: currentServerPlayerId, name: meta.name, shirt: meta.shirt, teamSymbol: meta.teamSymbol, setNum: setNumToRecord, streak: currentServerStreak });
+                    }
+                    // Reset and rotate the team that will now serve
+                    currentServerStreak = 0;
+                    const newServingTeamSymbol = String(pointWinnerId) === String(teamAId_param) ? 'A' : 'B';
+                    rotateTeamPositions(newServingTeamSymbol);
+                    currentServingTeamId = pointWinnerId;
+                    const teamPositions = newServingTeamSymbol === 'A' ? positionsA : positionsB;
+                    currentServerPlayerId = teamPositions[1] || null;
+                    currentServerStreak = 0; // new server starts with zero consecutive team points
+                    // The point that caused the sideout belongs to the new serving team and should count as their first serve-point
+                    if (currentServerPlayerId) currentServerStreak = 1;
+                }
+            } else {
+                // No known server: set serving team to point winner and assign P1
+                currentServingTeamId = pointWinnerId;
+                const teamPositions = String(pointWinnerId) === String(teamAId_param) ? positionsA : positionsB;
+                currentServerPlayerId = teamPositions[1] || null;
+                currentServerStreak = currentServerPlayerId ? 1 : 0;
+            }
+        } else if (event.code === 'lopetaottelu' || event.code === 'maali') {
+            // Finalize ongoing streak when set/match ends
+                    if (currentServerPlayerId && currentServerStreak >= 2) {
+                const meta = getPlayerMeta(currentServerPlayerId);
+                const setNumToRecord = currentSetNum || lastSeenPeriod || 1;
+                recordedStreaks.push({ playerId: currentServerPlayerId, name: meta.name, shirt: meta.shirt, teamSymbol: meta.teamSymbol, setNum: setNumToRecord, streak: currentServerStreak });
+            }
+            currentServerStreak = 0;
+        }
+    }
+
+    // If anything left at the end, finalize
+    if (currentServerPlayerId && currentServerStreak >= 2) {
+        recordedStreaks.push({ playerId: currentServerPlayerId, name: playerInfo[currentServerPlayerId]?.name || '', shirt: playerInfo[currentServerPlayerId]?.shirt || '', teamSymbol: playerInfo[currentServerPlayerId]?.teamSymbol || '', setNum: currentSetNum, streak: currentServerStreak });
+    }
+
+    // Return sorted by streak descending, then by team
+    return recordedStreaks.sort((a,b) => b.streak - a.streak || a.teamSymbol.localeCompare(b.teamSymbol));
 }
 
 // Ensure these are declared if not already, for clarity, though they are global.

@@ -199,6 +199,21 @@
                 </div>
             </div>
 
+            <!-- Playback controls moved directly under the court for better UX -->
+            <div class="text-center my-4 space-x-2" aria-label="Playback controls">
+                <button id="prev-event" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg transition duration-150 ease-in-out" disabled>
+                    Previous Event
+                </button>
+                <button id="play-pause-btn" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg transition duration-150 ease-in-out w-24" disabled>
+                    Play
+                </button>
+                <button id="next-event" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition duration-150 ease-in-out" disabled>
+                    Next Event
+                </button>
+                <button id="skip-to-end-btn" class="bg-purple-500 hover:bg-purple-600 text-white font-bold py-2 px-4 rounded-lg transition duration-150 ease-in-out" disabled>
+                    Skip to End
+                </button>
+            </div>
             <div id="all-rallies-duration-chart-area" class="mt-8 mb-2 opacity-50">
                 <h3 class="text-xl font-semibold mb-3 text-center text-gray-700">All Rallies: Durations (seconds)</h3>
                 <div id="all-rallies-duration-visualization" class="rally-chart-visualization p-4 border border-gray-300 rounded-md bg-gray-50 min-h-[280px]">
@@ -297,6 +312,10 @@
                 <h5>Player Points Per Set</h5>
                 <div id="advanced-player-points-set-content"><p class="text-gray-400 italic text-center">Data will appear here.</p></div>
             </div>
+            <div id="advanced-starting-positions-section" class="advanced-stats-section mb-6">
+                <h5>Starting Positions by Set</h5>
+                <div id="advanced-starting-positions-content"><p class="text-gray-400 italic text-center">Data will appear here.</p></div>
+            </div>
             <div id="advanced-leadchanges-maxleads-section" class="advanced-stats-section mb-6">
                 <h5>Lead Changes & Max Leads Per Set</h5>
                 <div id="advanced-leadchanges-maxleads-content"><p class="text-gray-400 italic text-center">Data will appear here.</p></div>
@@ -322,12 +341,87 @@
 
     </div> 
     <script type="module">
-        import { calculateGameStats, parseTimeToSeconds, formatSecondsToMMSS } from './js/stats_calculator.js';
+    import { calculateGameStats, parseTimeToSeconds, formatSecondsToMMSS, calculateServingStreaks } from './js/stats_calculator.js';
 
         // --- APPLICATION LOGIC ---
         const API_BASE_URL = "https://lentopallo-api.torneopal.net/taso/rest/";
         const ALLOWED_HOSTNAME = "lentopallo-api.torneopal.net";
         const playbackSpeed = 1500;
+
+        // Network helper: try direct fetch, then local proxy (if localhost), then a list of public proxies.
+        async function fetchWithFallback(targetUrl, options = {}) {
+            const { preferLocalRaw = false, timeoutMs = 10000 } = options;
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), timeoutMs);
+            // Helper to attempt fetch and parse JSON (or throw)
+            async function tryFetch(u, parseAsAllorigins = false, parseAsThingproxy = false) {
+                try {
+                    const resp = await fetch(u, { signal: controller.signal });
+                    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+                    const txt = await resp.text();
+                    // If caller expects allorigins format, parse wrapper
+                    if (parseAsAllorigins) {
+                        try { const wrapper = JSON.parse(txt); if (wrapper && wrapper.contents) return JSON.parse(wrapper.contents); } catch (e) { throw new Error('Failed to parse allorigins response'); }
+                    }
+                    // thingproxy returns raw proxied body; try parse
+                    if (parseAsThingproxy) {
+                        try { return JSON.parse(txt); } catch (e) { throw new Error('Failed to parse thingproxy response'); }
+                    }
+                    // Default: try JSON.parse, otherwise return text as-is
+                    try { return JSON.parse(txt); } catch (e) { return txt; }
+                } catch (err) {
+                    throw err;
+                }
+            }
+
+            try {
+                // 1) Direct
+                try {
+                    const result = await tryFetch(targetUrl);
+                    clearTimeout(timeout);
+                    return result;
+                } catch (directErr) {
+                    console.debug('Direct fetch failed, will try proxies:', directErr.message);
+                }
+
+                // 2) Local proxy when running on localhost
+                try {
+                    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+                    if (isLocal) {
+                        const localUrl = preferLocalRaw ? `/proxy/raw?url=${encodeURIComponent(targetUrl)}` : `/proxy/get?url=${encodeURIComponent(targetUrl)}`;
+                        const resp = await fetch(localUrl, { signal: controller.signal });
+                        if (!resp.ok) throw new Error(`Local proxy HTTP ${resp.status}`);
+                        if (preferLocalRaw) {
+                            const parsed = await resp.json(); clearTimeout(timeout); return parsed;
+                        } else {
+                            const wrapper = await resp.json(); clearTimeout(timeout); return JSON.parse(wrapper.contents);
+                        }
+                    }
+                } catch (localErr) {
+                    console.debug('Local proxy attempt failed:', localErr.message);
+                }
+
+                // 3) Public proxies (try a few endpoints)
+                const publicProxies = [
+                    { url: (u) => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`, parseAllorigins: true },
+                    { url: (u) => `https://thingproxy.freeboard.io/fetch/${u}`, parseThingproxy: true }
+                ];
+                for (const p of publicProxies) {
+                    try {
+                        const proxyUrl = p.url(targetUrl);
+                        const result = await tryFetch(proxyUrl, p.parseAllorigins, p.parseThingproxy);
+                        clearTimeout(timeout);
+                        return result;
+                    } catch (proxyErr) {
+                        console.debug(`Public proxy ${p.url.name || 'proxy'} failed:`, proxyErr.message);
+                    }
+                }
+
+                throw new Error('All network attempts failed');
+            } finally {
+                clearTimeout(timeout);
+            }
+        }
 
         let teamMatchesUrlInput, loadTeamMatchesBtn, teamLoadStatusEl, matchListDisplayAreaEl,
             gameUrlInput, loadDataBtn, loadStatusEl, replayUIContainerEl, scoreboardEl, matchInfoEl,
@@ -564,51 +658,7 @@
             return perf;
         }
 
-        function calculateServingStreaks(gameSortedEvents, lineupData, teamAId_param, teamBId_param) {
-            const playerServingStreaks = {}; if (!lineupData || !lineupData.match || !lineupData.match.lineups || !playerStats ) return [];
-            Object.keys(playerStats).forEach(playerId => { // Initialize from current game's playerStats
-                playerServingStreaks[playerId] = { name: playerStats[playerId].name, shirt: playerStats[playerId].shirt, teamSymbol: playerStats[playerId].team, maxStreak: 0, currentStreakPoints: 0 };
-            });
-
-            let currentTeamServerPlayerId = null; 
-            let currentTeamServingId = null; 
-
-            gameSortedEvents.forEach(event => {
-                if (event.code === 'aloitajakso') {
-                    if (currentTeamServerPlayerId && playerServingStreaks[currentTeamServerPlayerId]) { playerServingStreaks[currentTeamServerPlayerId].maxStreak = Math.max(playerServingStreaks[currentTeamServerPlayerId].maxStreak, playerServingStreaks[currentTeamServerPlayerId].currentStreakPoints); playerServingStreaks[currentTeamServerPlayerId].currentStreakPoints = 0; }
-                    currentTeamServerPlayerId = null; currentTeamServingId = null;
-                } else if (event.code === 'aloittavajoukkue') {
-                    if (currentTeamServerPlayerId && playerServingStreaks[currentTeamServerPlayerId]) { playerServingStreaks[currentTeamServerPlayerId].maxStreak = Math.max(playerServingStreaks[currentTeamServerPlayerId].maxStreak, playerServingStreaks[currentTeamServerPlayerId].currentStreakPoints); playerServingStreaks[currentTeamServerPlayerId].currentStreakPoints = 0; }
-                    currentTeamServingId = String(event.team_id);
-                    // Approximation: Use the player in position 1 of the serving team *at the start of the current set*
-                    // This won't be accurate if substitutions changed the server or if it's not the first serve of the set.
-                    // A more robust solution would require tracking dynamic player positions throughout the replay.
-                    const teamPositions = currentTeamServingId === teamAId_param ? playerPositionsA : playerPositionsB; 
-                    currentTeamServerPlayerId = teamPositions[1] || null; 
-                     if(currentTeamServerPlayerId && playerServingStreaks[currentTeamServerPlayerId]) playerServingStreaks[currentTeamServerPlayerId].currentStreakPoints = 0;
-
-                } else if (event.code === 'piste') {
-                    const pointWinnerTeamId = String(event.team_id);
-                    if (currentTeamServerPlayerId && playerServingStreaks[currentTeamServerPlayerId] && currentTeamServingId === pointWinnerTeamId) {
-                        playerServingStreaks[currentTeamServerPlayerId].currentStreakPoints++;
-                    } else if (currentTeamServerPlayerId && playerServingStreaks[currentTeamServerPlayerId]) { 
-                        playerServingStreaks[currentTeamServerPlayerId].maxStreak = Math.max(playerServingStreaks[currentTeamServerPlayerId].maxStreak, playerServingStreaks[currentTeamServerPlayerId].currentStreakPoints);
-                        playerServingStreaks[currentTeamServerPlayerId].currentStreakPoints = 0;
-                        currentTeamServingId = pointWinnerTeamId;
-                        const teamPositions = currentTeamServingId === teamAId_param ? playerPositionsA : playerPositionsB; 
-                        currentTeamServerPlayerId = teamPositions[1] || null; 
-                        if(currentTeamServerPlayerId && playerServingStreaks[currentTeamServerPlayerId]) playerServingStreaks[currentTeamServerPlayerId].currentStreakPoints = 0;
-                    } else { 
-                        currentTeamServingId = pointWinnerTeamId;
-                        const teamPositions = currentTeamServingId === teamAId_param ? playerPositionsA : playerPositionsB;
-                        currentTeamServerPlayerId = teamPositions[1] || null;
-                         if(currentTeamServerPlayerId && playerServingStreaks[currentTeamServerPlayerId]) playerServingStreaks[currentTeamServerPlayerId].currentStreakPoints = 0;
-                    }
-                }
-            });
-            if (currentTeamServerPlayerId && playerServingStreaks[currentTeamServerPlayerId]) { playerServingStreaks[currentTeamServerPlayerId].maxStreak = Math.max(playerServingStreaks[currentTeamServerPlayerId].maxStreak, playerServingStreaks[currentTeamServerPlayerId].currentStreakPoints); }
-            return Object.values(playerServingStreaks).filter(p => p.maxStreak > 0).sort((a,b) => b.maxStreak - a.maxStreak);
-        }
+        // Serving-streaks calculation moved into `js/stats_calculator.js` and is imported in the module.
         
         function calculateServeReceiveAndBreakPoints(gameSortedEvents, teamAId_param, teamBId_param) {
             const stats = {
@@ -783,12 +833,57 @@
         function renderServingStreaksTable(streakData, targetElementId) {
             const contentEl = document.getElementById(targetElementId); contentEl.innerHTML = '';
             if (!streakData || streakData.length === 0) { contentEl.innerHTML = '<p>No serving streak data available.</p>'; return; }
+
+            // Group by team and then sort by streak descending
+            const byTeam = { A: [], B: [] };
+            streakData.forEach(s => { if (!s) return; if (s.teamSymbol === 'A') byTeam.A.push(s); else byTeam.B.push(s); });
+            byTeam.A.sort((a,b) => b.streak - a.streak); byTeam.B.sort((a,b) => b.streak - a.streak);
+
+            const topContainer = document.createElement('div'); topContainer.className = 'grid grid-cols-1 md:grid-cols-2 gap-4 mb-4';
+            const makeTeamCard = (teamSymbol, arr) => {
+                const card = document.createElement('div'); card.className = 'p-2 border rounded';
+                const title = document.createElement('div'); title.className = 'font-semibold mb-1'; title.textContent = teamSymbol === 'A' ? (teamANameEl.textContent || 'Team A') : (teamBNameEl.textContent || 'Team B');
+                card.appendChild(title);
+                if (arr.length === 0) {
+                    const p = document.createElement('p'); p.className = 'text-sm text-gray-500'; p.textContent = 'No serving streaks.'; card.appendChild(p);
+                } else {
+                    // Show top 1 for the small card (if multiple, show the best)
+                    const best = arr[0];
+                    const p = document.createElement('p'); p.innerHTML = `<strong>${best.shirt} - ${best.name}</strong> — Longest serving streak: <strong>${best.streak}</strong> (Set ${best.setNum})`;
+                    card.appendChild(p);
+                    if (arr.length > 1) {
+                        const sub = document.createElement('div'); sub.className = 'text-sm text-gray-600 mt-1'; sub.textContent = `${arr.length} streaks recorded`; card.appendChild(sub);
+                    }
+                }
+                return card;
+            };
+            topContainer.appendChild(makeTeamCard('A', byTeam.A)); topContainer.appendChild(makeTeamCard('B', byTeam.B));
+            contentEl.appendChild(topContainer);
+
+            // Full list table (all streaks)
             const table = document.createElement('table'); table.className = 'w-full md:w-3/4 lg:w-2/3 mx-auto advanced-stats-table';
-            const thead = table.createTHead(); const headerRow = thead.insertRow();
-            ["#", "Player", "Team", "Longest Serving Streak (Team Pts)"].forEach(text => { const th = document.createElement('th'); th.textContent = text; headerRow.appendChild(th); });
+            const thead = table.createTHead(); const headerRow = thead.insertRow(); ["#", "Player (Shirt - Name)", "Team", "Set", "Streak (consecutive team points)"]
+                .forEach(text => { const th = document.createElement('th'); th.textContent = text; headerRow.appendChild(th); });
             const tbody = table.createTBody();
-            streakData.forEach(p => { if (p.maxStreak > 0) { const row = tbody.insertRow(); row.insertCell().textContent = p.shirt; row.insertCell().textContent = p.name; row.insertCell().textContent = p.teamSymbol === 'A' ? (teamANameEl.textContent || 'Team A') : (teamBNameEl.textContent || 'Team B'); row.insertCell().textContent = p.maxStreak; row.cells[3].classList.add('text-center'); } });
-            if (tbody.rows.length === 0) { contentEl.innerHTML = '<p class="text-center text-gray-500">No serving streaks of 1+ point found.</p>'; } else { contentEl.appendChild(table); }
+
+            let idx = 1;
+            const all = [...byTeam.A, ...byTeam.B];
+            all.sort((a,b) => b.streak - a.streak || a.teamSymbol.localeCompare(b.teamSymbol));
+            all.forEach(s => {
+                const row = tbody.insertRow();
+                row.insertCell().textContent = idx++;
+                row.insertCell().textContent = `${s.shirt} - ${s.name}`;
+                row.insertCell().textContent = s.teamSymbol === 'A' ? (teamANameEl.textContent || 'Team A') : (teamBNameEl.textContent || 'Team B');
+                row.insertCell().textContent = s.setNum || '-';
+                row.insertCell().textContent = s.streak;
+                row.cells[4].classList.add('text-center');
+            });
+
+            if (tbody.rows.length === 0) {
+                const p = document.createElement('p'); p.className = 'text-center text-gray-500'; p.textContent = 'No serving streaks of length 2+ found.'; contentEl.appendChild(p);
+            } else {
+                contentEl.appendChild(table);
+            }
         }
 
         function renderServeReceivePointsTable(data, targetElementId) {
@@ -818,6 +913,35 @@
         }
 
 
+        /** Renders starting positions per set for both teams. Expects loadedGameData.match.lineups to contain playing_position mapping per set. */
+        function renderStartingPositionsTables(matchData, teamAId_param, teamBId_param, targetElementId) {
+            const contentEl = document.getElementById(targetElementId); contentEl.innerHTML = '';
+            if (!matchData || !matchData.lineups || !Array.isArray(matchData.lineups)) { contentEl.innerHTML = '<p>No lineup data available.</p>'; return; }
+            // Determine sets present in playing_position entries
+            const sets = new Set(); matchData.lineups.forEach(p => { if (p.playing_position && typeof p.playing_position === 'object') { Object.keys(p.playing_position).forEach(s => { const sn = parseInt(s); if (!isNaN(sn)) sets.add(sn); }); } });
+            const setNumbers = Array.from(sets).sort((a,b) => a - b);
+            if (setNumbers.length === 0) { contentEl.innerHTML = '<p>No starting-position information found in lineups.</p>'; return; }
+
+            // For each set, create a small table showing positions 1..6 and player (shirt + name) for Team A and Team B
+            setNumbers.forEach(setNum => {
+                const header = document.createElement('h6'); header.className = 'font-semibold text-gray-700 mb-1'; header.textContent = `Set ${setNum}`;
+                const table = document.createElement('table'); table.className = 'w-full advanced-stats-table mb-3 text-center';
+                const thead = table.createTHead(); const headRow = thead.insertRow(); ['Position','Team A (shirt - name)','Team B (shirt - name)'].forEach(t => { const th = document.createElement('th'); th.textContent = t; headRow.appendChild(th); });
+                const tbody = table.createTBody();
+                for (let pos = 1; pos <= 6; pos++) {
+                    const row = tbody.insertRow();
+                    row.insertCell().textContent = pos;
+                    // Find player for Team A in this position & set
+                    const playerA = matchData.lineups.find(p => String(p.team_id) === String(teamAId_param) && p.playing_position && p.playing_position[setNum] == pos);
+                    const playerB = matchData.lineups.find(p => String(p.team_id) === String(teamBId_param) && p.playing_position && p.playing_position[setNum] == pos);
+                    row.insertCell().textContent = playerA ? `${playerA.shirt_number} - ${playerA.player_name}` : '-';
+                    row.insertCell().textContent = playerB ? `${playerB.shirt_number} - ${playerB.player_name}` : '-';
+                }
+                contentEl.appendChild(header); contentEl.appendChild(table);
+            });
+        }
+
+
         function displayAdvancedGameStats() {
             if (!currentGameAdvancedStats) { console.warn("Advanced stats data not calculated yet."); return; }
             renderSetSummariesTable(currentGameAdvancedStats.setSummaries, 'advanced-set-summaries-content');
@@ -829,6 +953,8 @@
             renderServingStreaksTable(currentGameAdvancedStats.servingStreaks, 'advanced-serving-streaks-content');
             renderServeReceivePointsTable(currentGameAdvancedStats.serveReceivePoints, 'advanced-serve-receive-points-content');
             renderAvgPointsServiceTurnTable(currentGameAdvancedStats.avgPointsServiceTurn, 'advanced-avg-points-service-turn-content');
+            // Starting positions table (uses loadedGameData.match)
+            try { renderStartingPositionsTables(loadedGameData?.match, teamAId, teamBId, 'advanced-starting-positions-content'); } catch (e) { console.warn('Failed to render starting positions', e); }
             advancedStatsRendered = true;
         }
 
@@ -840,23 +966,8 @@
                 if (!parsedUrl.pathname.includes('getMatches')) { throw new Error('URL does not appear to be a getMatches URL.'); }
                 if (!parsedUrl.searchParams.get('team_id')) { throw new Error('URL is missing the required team_id parameter.'); }
                 
-                // Use local proxy when available (running on localhost) to avoid CORS.
-                let response, proxyData, data;
-                try {
-                    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-                    if (isLocal) {
-                        const localProxy = `/proxy/raw?url=${encodeURIComponent(url)}`;
-                        response = await fetch(localProxy);
-                        if (!response.ok) throw new Error(`HTTP error from local proxy! Status: ${response.status}`);
-                        data = await response.json();
-                    } else {
-                        // *** PUBLIC PROXY WRAPPER for GitHub Pages ***
-                        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
-                        response = await fetch(proxyUrl); if (!response.ok) { throw new Error(`HTTP error! Status: ${response.status}`); }
-                        proxyData = await response.json();
-                        data = JSON.parse(proxyData.contents); // allorigins wraps the response
-                    }
-                } catch (e) { throw e; }
+                // Use fetchWithFallback to attempt direct -> local proxy -> public proxies
+                const data = await fetchWithFallback(url, { preferLocalRaw: true, timeoutMs: 12000 });
                 if (!data?.matches || !Array.isArray(data.matches)) { throw new Error('Invalid response format: Missing "matches" array.'); }
                 displayMatchList(data.matches, data.team_name); setStatusMessage(teamLoadStatusEl, `Found ${data.matches.length} matches for ${data.team_name}. Select a game to load.`, 'success');
             } catch (error) { console.error('Error loading team matches:', error); setStatusMessage(teamLoadStatusEl, `Error: ${error.message}`, 'error'); matchListDisplayAreaEl.innerHTML = '<p class="text-red-500">Could not load matches.</p>'; } 
@@ -887,23 +998,8 @@
                 let parsedUrl; try { parsedUrl = new URL(url); } catch (_) { throw new Error('Invalid URL format.'); }
                 if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') { throw new Error('URL must use http or https.'); }
                 if (!parsedUrl.searchParams.get('match_id')) { throw new Error('URL is missing the required match_id parameter for getMatch.'); }
-                // Use local proxy when available (running on localhost) to avoid CORS.
-                let response, proxyData, data;
-                try {
-                    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-                    if (isLocal) {
-                        const localProxy = `/proxy/get?url=${encodeURIComponent(url)}`; // local proxy returns { contents }
-                        response = await fetch(localProxy);
-                        if (!response.ok) throw new Error(`HTTP error from local proxy! Status: ${response.status}`);
-                        proxyData = await response.json();
-                        data = JSON.parse(proxyData.contents);
-                    } else {
-                        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
-                        response = await fetch(proxyUrl); if (!response.ok) { throw new Error(`HTTP error! Status: ${response.status}`); }
-                        proxyData = await response.json();
-                        data = JSON.parse(proxyData.contents); // allorigins wraps the response
-                    }
-                } catch (e) { throw e; }
+                // Use fetchWithFallback to attempt direct -> local proxy -> public proxies
+                const data = await fetchWithFallback(url, { preferLocalRaw: false, timeoutMs: 12000 });
                 if (!data?.match?.events || !Array.isArray(data.match.events) || !data?.match?.lineups || !Array.isArray(data.match.lineups) || !data?.match?.team_A_id || !data?.match?.team_B_id) { throw new Error('Invalid game data: Missing critical fields like events, lineups, or team IDs.'); }
                 loadedGameData = data; setStatusMessage(loadStatusEl, 'Game data loaded successfully!', 'success'); initializeGame(); replayUIContainerEl.classList.remove('opacity-50'); 
             } catch (error) { console.error('Error loading game data:', error); setStatusMessage(loadStatusEl, `Error: ${error.message}`, 'error'); loadedGameData = null; resetUIState(); } 
@@ -934,6 +1030,8 @@
             advancedSideoutContentEl.innerHTML = placeholderText;
             advancedPointrunsContentEl.innerHTML = placeholderText;
             advancedPlayerPointsSetContentEl.innerHTML = placeholderText;
+            // Starting positions placeholder
+            const startingPositionsEl = document.getElementById('advanced-starting-positions-content'); if (startingPositionsEl) startingPositionsEl.innerHTML = placeholderText;
             advancedLeadChangesMaxLeadsContentEl.innerHTML = placeholderText;
             advancedTimeoutPerformanceContentEl.innerHTML = placeholderText;
             advancedServingStreaksContentEl.innerHTML = placeholderText;
