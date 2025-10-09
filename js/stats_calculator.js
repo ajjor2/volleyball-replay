@@ -367,6 +367,129 @@ export function calculateServingStreaks(gameSortedEvents, lineupData, teamAId_pa
     return recordedStreaks.sort((a,b) => b.streak - a.streak || a.teamSymbol.localeCompare(b.teamSymbol));
 }
 
+/**
+ * Calculates statistics for each rotation for both teams.
+ * A rotation is defined by the player in position 1.
+ * Returns an object with point differentials for each rotation.
+ */
+export function calculateRotationalStats(gameSortedEvents, lineupData, teamAId_param, teamBId_param) {
+    if (!lineupData?.match?.lineups || !gameSortedEvents) return { teamA: {}, teamB: {} };
+
+    const playerInfo = {};
+    lineupData.match.lineups.forEach(p => {
+        playerInfo[String(p.player_id)] = { name: p.player_name || '', shirt: p.shirt_number || '' };
+    });
+
+    let positionsA = {};
+    let positionsB = {};
+    let servingTeamSymbol = null;
+
+    const setStartingLineup = (setNum) => {
+        positionsA = {};
+        positionsB = {};
+        lineupData.match.lineups.forEach(p => {
+            const pid = String(p.player_id);
+            if (p.playing_position && p.playing_position[setNum]) {
+                const zone = p.playing_position[setNum];
+                if (zone >= 1 && zone <= 6) {
+                    if (String(p.team_id) === String(teamAId_param)) positionsA[zone] = pid;
+                    else if (String(p.team_id) === String(teamBId_param)) positionsB[zone] = pid;
+                }
+            }
+        });
+    };
+
+    const rotateTeamPositions = (teamSymbol) => {
+        const current = teamSymbol === 'A' ? positionsA : positionsB;
+        const next = {};
+        next[1] = current[2]; next[6] = current[1]; next[5] = current[6];
+        next[4] = current[5]; next[3] = current[4]; next[2] = current[3];
+        if (teamSymbol === 'A') positionsA = next;
+        else positionsB = next;
+    };
+
+    const subs = (lineupData.match.substitution_events || []).length > 0
+        ? lineupData.match.substitution_events
+        : gameSortedEvents.filter(e => e.code === 'vaihto');
+
+    const applySub = (sub) => {
+        const playerInId = String(sub.player_id);
+        const playerOutId = String(sub.player_2_id || sub.player_out_id || '');
+        if (!playerInId) return;
+        const teamPositions = String(sub.team_id) === String(teamAId_param) ? positionsA : positionsB;
+        for (const pos in teamPositions) {
+            if (teamPositions[pos] === playerOutId) {
+                teamPositions[pos] = playerInId;
+                break;
+            }
+        }
+    };
+
+    const rotationalStats = { teamA: {}, teamB: {} };
+
+    const initializeRotationStat = (teamSymbol, playerInPos1) => {
+        const teamStats = teamSymbol === 'A' ? rotationalStats.teamA : rotationalStats.teamB;
+        if (playerInPos1 && !teamStats[playerInPos1]) {
+            teamStats[playerInPos1] = {
+                pointsFor: 0,
+                pointsAgainst: 0,
+                totalRallies: 0,
+                player: playerInfo[playerInPos1] ? { ...playerInfo[playerInPos1], id: playerInPos1 } : { id: playerInPos1, name: `Player ${playerInPos1}`, shirt: '?' }
+            };
+        }
+    };
+
+    for (const event of gameSortedEvents) {
+        if (subs.length > 0) {
+            subs.filter(s => s.wall_time === event.wall_time && s.period === event.period).forEach(applySub);
+        }
+
+        switch (event.code) {
+            case 'aloitajakso':
+                setStartingLineup(parseInt(event.period));
+                servingTeamSymbol = null;
+                break;
+
+            case 'aloittavajoukkue':
+                servingTeamSymbol = String(event.team_id) === String(teamAId_param) ? 'A' : 'B';
+                break;
+
+            case 'piste':
+                const playerInPos1A = positionsA[1];
+                const playerInPos1B = positionsB[1];
+
+                initializeRotationStat('A', playerInPos1A);
+                initializeRotationStat('B', playerInPos1B);
+
+                const pointWinnerSymbol = String(event.team_id) === String(teamAId_param) ? 'A' : 'B';
+
+                if (playerInPos1A) {
+                    rotationalStats.teamA[playerInPos1A].totalRallies++;
+                    if (pointWinnerSymbol === 'A') {
+                        rotationalStats.teamA[playerInPos1A].pointsFor++;
+                    } else {
+                        rotationalStats.teamA[playerInPos1A].pointsAgainst++;
+                    }
+                }
+                if (playerInPos1B) {
+                    rotationalStats.teamB[playerInPos1B].totalRallies++;
+                    if (pointWinnerSymbol === 'B') {
+                        rotationalStats.teamB[playerInPos1B].pointsFor++;
+                    } else {
+                        rotationalStats.teamB[playerInPos1B].pointsAgainst++;
+                    }
+                }
+
+                if (servingTeamSymbol && servingTeamSymbol !== pointWinnerSymbol) {
+                    rotateTeamPositions(pointWinnerSymbol);
+                }
+                servingTeamSymbol = pointWinnerSymbol;
+                break;
+        }
+    }
+    return rotationalStats;
+}
+
 // Ensure these are declared if not already, for clarity, though they are global.
 // These will be accessed by the test script.
 let teamIdOfInterest; 

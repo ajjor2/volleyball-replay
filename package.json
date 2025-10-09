@@ -6,7 +6,7 @@
   "type": "module",
   "homepage": "https://ajjor2.github.io/volleyball-replay",
   "scripts": {
-  "test": "node tests/test_stats_calculator.js && node tests/test_lineup_utils.js && node tests/test_serving_streaks.js",
+  "test": "node tests/test_stats_calculator.js && node tests/test_lineup_utils.js && node tests/test_serving_streaks.js && node tests/test_rotational_stats.js",
     "start": "node server.js"
   },
   "keywords": [],

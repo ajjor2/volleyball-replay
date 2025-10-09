@@ -383,6 +383,10 @@
                 <h5>Average Points per Service Turn</h5>
                 <div id="advanced-avg-points-service-turn-content"><p class="text-gray-400 italic text-center">Data will appear here.</p></div>
             </div>
+            <div id="advanced-rotational-performance-section" class="advanced-stats-section mb-6">
+                <h5>Rotational Performance (Point Differential)</h5>
+                <div id="advanced-rotational-performance-content"><p class="text-gray-400 italic text-center">Data will appear here.</p></div>
+            </div>
         </div>
 
         <div id="ai-analysis-container" class="mt-6 border-t border-gray-300 pt-4" style="display: none;">
@@ -417,7 +421,7 @@
 
     </div>
     <script type="module">
-    import { calculateGameStats, parseTimeToSeconds, formatSecondsToMMSS, calculateServingStreaks } from './js/stats_calculator.js';
+    import { calculateGameStats, parseTimeToSeconds, formatSecondsToMMSS, calculateServingStreaks, calculateRotationalStats } from './js/stats_calculator.js';
 
         // --- APPLICATION LOGIC ---
         const API_BASE_URL = "https://lentopallo-api.torneopal.net/taso/rest/";
@@ -512,7 +516,7 @@
             toggleAdvancedStatsBtn, advancedStatsContainerEl, advancedSetSummariesContentEl,
             advancedSideoutContentEl, advancedPointrunsContentEl, advancedPlayerPointsSetContentEl,
             advancedLeadChangesMaxLeadsContentEl, advancedTimeoutPerformanceContentEl, advancedServingStreaksContentEl,
-            advancedServeReceivePointsContentEl, advancedAvgPointsServiceTurnContentEl,
+            advancedServeReceivePointsContentEl, advancedAvgPointsServiceTurnContentEl, advancedRotationalPerformanceContentEl,
             openRouterApiKeyInput, generateAiAnalysisBtn, aiAnalysisStatusEl, aiAnalysisOutputAreaEl, aiAnalysisContainerEl,
             streakCourtTooltipEl, streakCourtTooltipContentEl, mainContentContainerEl;
 
@@ -1094,6 +1098,55 @@
             contentEl.appendChild(table);
         }
 
+        function renderRotationalPerformanceTable(rotationalData, targetElementId) {
+            const contentEl = document.getElementById(targetElementId);
+            contentEl.innerHTML = '';
+            if (!rotationalData || (!Object.keys(rotationalData.teamA).length && !Object.keys(rotationalData.teamB).length)) {
+                contentEl.innerHTML = '<p>No rotational performance data available.</p>';
+                return;
+            }
+
+            const createTeamTable = (teamSymbol, data) => {
+                const container = document.createElement('div');
+                const teamName = teamSymbol === 'A' ? (teamANameEl.textContent || 'Team A') : (teamBNameEl.textContent || 'Team B');
+                const header = document.createElement('h6');
+                header.className = 'font-semibold text-gray-700 mt-2 mb-1';
+                header.textContent = teamName;
+                container.appendChild(header);
+
+                if (Object.keys(data).length === 0) {
+                    container.innerHTML += '<p class="text-sm text-gray-500">No rotations recorded for this team.</p>';
+                    return container;
+                }
+
+                const table = document.createElement('table');
+                table.className = 'w-full advanced-stats-table text-sm';
+                const thead = table.createTHead();
+                const headerRow = thead.insertRow();
+                ["Rotation (Server)", "Points For", "Points Against", "Differential", "Total Rallies"].forEach(text => {
+                    const th = document.createElement('th');
+                    th.textContent = text;
+                    headerRow.appendChild(th);
+                });
+                const tbody = table.createTBody();
+                Object.values(data).sort((a, b) => (b.pointsFor - b.pointsAgainst) - (a.pointsFor - a.pointsAgainst)).forEach(rot => {
+                    const diff = rot.pointsFor - rot.pointsAgainst;
+                    const row = tbody.insertRow();
+                    row.insertCell().textContent = `${rot.player.shirt} - ${rot.player.name}`;
+                    row.insertCell().textContent = rot.pointsFor;
+                    row.insertCell().textContent = rot.pointsAgainst;
+                    const diffCell = row.insertCell();
+                    diffCell.textContent = diff > 0 ? `+${diff}` : diff;
+                    diffCell.className = diff > 0 ? 'text-green-600 font-bold' : (diff < 0 ? 'text-red-600 font-bold' : '');
+                    row.insertCell().textContent = rot.totalRallies;
+                });
+                container.appendChild(table);
+                return container;
+            };
+
+            contentEl.appendChild(createTeamTable('A', rotationalData.teamA));
+            contentEl.appendChild(createTeamTable('B', rotationalData.teamB));
+        }
 
         /** Renders starting positions per set for both teams. Expects loadedGameData.match.lineups to contain playing_position mapping per set. */
         function renderStartingPositionsTables(matchData, teamAId_param, teamBId_param, targetElementId) {
@@ -1135,6 +1188,7 @@
             renderServingStreaksTable(currentGameAdvancedStats.servingStreaks, 'advanced-serving-streaks-content');
             renderServeReceivePointsTable(currentGameAdvancedStats.serveReceivePoints, 'advanced-serve-receive-points-content');
             renderAvgPointsServiceTurnTable(currentGameAdvancedStats.avgPointsServiceTurn, 'advanced-avg-points-service-turn-content');
+            renderRotationalPerformanceTable(currentGameAdvancedStats.rotationalStats, 'advanced-rotational-performance-content');
             // Starting positions table (uses loadedGameData.match)
             try { renderStartingPositionsTables(loadedGameData?.match, teamAId, teamBId, 'advanced-starting-positions-content'); } catch (e) { console.warn('Failed to render starting positions', e); }
             advancedStatsRendered = true;
@@ -1153,7 +1207,6 @@
             const teamAName = teamANameEl.textContent || 'Team A';
             const teamBName = teamBNameEl.textContent || 'Team B';
 
-            // Simplify player stats to be more readable for the LLM
             const simplifiedPlayerStats = (teamSymbol) => {
                 return Object.values(playerStats)
                     .filter(p => p.team === teamSymbol)
@@ -1164,6 +1217,22 @@
                         serves: p.serves,
                         isCaptain: p.isCaptain
                     }));
+            };
+
+            const formatRotationalStatsForAI = (teamRotationalData) => {
+                if (!teamRotationalData) return {};
+                const formatted = {};
+                for (const playerId in teamRotationalData) {
+                    const rot = teamRotationalData[playerId];
+                    const playerName = `${rot.player.name} (#${rot.player.shirt})`;
+                    formatted[playerName] = {
+                        pointsFor: rot.pointsFor,
+                        pointsAgainst: rot.pointsAgainst,
+                        differential: rot.pointsFor - rot.pointsAgainst,
+                        totalRallies: rot.totalRallies
+                    };
+                }
+                return formatted;
             };
 
             const stats = {
@@ -1179,12 +1248,14 @@
                     timeoutsUsed: teamATimeouts,
                     substitutions: teamASubs,
                     impliedOpponentErrors: teamAImpliedOpponentErrors,
+                    rotationalPerformance: formatRotationalStatsForAI(currentGameAdvancedStats.rotationalStats.teamA)
                 },
                 teamB_Stats: {
                     players: simplifiedPlayerStats('B'),
                     timeoutsUsed: teamBTimeouts,
                     substitutions: teamBSubs,
                     impliedOpponentErrors: teamBImpliedOpponentErrors,
+                    rotationalPerformance: formatRotationalStatsForAI(currentGameAdvancedStats.rotationalStats.teamB)
                 },
                 advancedStats: {
                     setSummaries: currentGameAdvancedStats.setSummaries.map(s => ({
@@ -1252,22 +1323,31 @@ ${statsJson}
 
 ${historicalAverages ? `Season averages for comparison: ${JSON.stringify(historicalAverages, null, 2)}` : ''}
 
-Step 1: Scan for anomalies (e.g., a player's spike % spiking 20% above norm, or unusual error clusters in rotations).
-Step 2: Identify patterns (e.g., side-out success tied to serve types, or libero digs enabling attacks).
-Step 3: Make 1-2 bold speculations (e.g., "This rotation weakness cost 3 points – swap #7 to opposite?").
-Step 4: Suggest 2-3 actionable tweaks for next match.
+Step 1: Analyze Rotational Performance. The `rotationalPerformance` key for each team shows the point differential when a specific player is the server (in position 1). A high positive differential indicates a strong rotation. A negative one is a weak rotation. Identify the BEST and WORST rotation for each team. For the worst rotation, speculate on the cause (e.g., weak server, poor serve receive, bad matchup).
+Step 2: Scan for other anomalies (e.g., a player's high point total but low serving streak, unusual error clusters, or significant side-out percentage differences).
+Step 3: Identify key patterns (e.g., a team's success being tied to a specific player's performance, or one team dominating after timeouts).
+Step 4: Suggest 2-3 actionable, specific tweaks for the losing team for a potential rematch.
 
-Include all interesting stats and findings
-**Top 5 Findings (ranked by impact):**
-- [Finding 1: Brief description + key stat + why it matters]
-- [Finding 2: ...]
-...
+Provide your analysis in the following format:
 
-**Tactical Edges:**
-- [Edge 1: ...]
+**Rotational Analysis:**
+- **[Team A Name]:**
+  - **Strongest Rotation:** [Player Name], Differential: [+/- X]
+  - **Weakest Rotation:** [Player Name], Differential: [+/- X]
+  - **Tactical Insight:** [Your brief analysis of their rotations]
+- **[Team B Name]:**
+  - **Strongest Rotation:** [Player Name], Differential: [+/- X]
+  - **Weakest Rotation:** [Player Name], Differential: [+/- X]
+  - **Tactical Insight:** [Your brief analysis of their rotations]
 
-**Quick Fixes:**
-- [Fix 1: ...]
+**Key Match Insights (Top 3):**
+1. [Finding 1: Brief description + key stat + why it matters]
+2. [Finding 2: ...]
+3. [Finding 3: ...]
+
+**Actionable Advice for [Losing Team Name]:**
+- [Tweak 1: ...]
+- [Tweak 2: ...]
   `;
             try {
                 const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
@@ -1390,6 +1470,7 @@ Include all interesting stats and findings
             advancedServingStreaksContentEl.innerHTML = placeholderText;
             advancedServeReceivePointsContentEl.innerHTML = placeholderText;
             advancedAvgPointsServiceTurnContentEl.innerHTML = placeholderText;
+            if (advancedRotationalPerformanceContentEl) advancedRotationalPerformanceContentEl.innerHTML = placeholderText;
             currentGameAdvancedStats = null; advancedStatsRendered = false;
             loadedGameData = null; currentEventIndex = -1; sortedEvents = []; gameHistory = [];
 
@@ -1442,7 +1523,8 @@ Include all interesting stats and findings
                 timeoutPerformance: calculateTimeoutPerformance(sortedEvents, teamAId, teamBId),
                 servingStreaks: calculateServingStreaks(sortedEvents, loadedGameData, teamAId, teamBId),
                 serveReceivePoints: calculateServeReceiveAndBreakPoints(sortedEvents, teamAId, teamBId),
-                avgPointsServiceTurn: calculateAveragePointsPerServiceTurn(sortedEvents, teamAId, teamBId)
+                avgPointsServiceTurn: calculateAveragePointsPerServiceTurn(sortedEvents, teamAId, teamBId),
+                rotationalStats: calculateRotationalStats(sortedEvents, loadedGameData, teamAId, teamBId)
             };
             advancedStatsRendered = false;
             toggleAdvancedStatsBtn.disabled = false;
@@ -1529,6 +1611,7 @@ Include all interesting stats and findings
             advancedTimeoutPerformanceContentEl = document.getElementById('advanced-timeout-performance-content'); advancedServingStreaksContentEl = document.getElementById('advanced-serving-streaks-content');
             advancedServeReceivePointsContentEl = document.getElementById('advanced-serve-receive-points-content');
             advancedAvgPointsServiceTurnContentEl = document.getElementById('advanced-avg-points-service-turn-content');
+            advancedRotationalPerformanceContentEl = document.getElementById('advanced-rotational-performance-content');
 
             streakCourtTooltipEl = document.getElementById('streak-court-tooltip');
             streakCourtTooltipContentEl = document.getElementById('streak-court-tooltip-content');
