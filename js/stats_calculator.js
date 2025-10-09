@@ -20,7 +20,7 @@ export function formatSecondsToMMSS(totalSeconds) { if (totalSeconds === null ||
 
 /** Calculates statistics for a single game from its detailed data object. */
 export function calculateGameStats(matchDetail) {
-    if (!matchDetail?.match?.events || !matchDetail?.match?.lineups) { console.error("calculateGameStats ERROR: Invalid match detail structure", matchDetail); return null; }
+    if (!matchDetail?.match?.events || !matchDetail?.match?.lineups) { return null; }
     const match = matchDetail.match;
     console.log(`--> Calculating stats for match ID: ${match.match_id}`);
     const gameStats = {

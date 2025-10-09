@@ -10,7 +10,7 @@ export function extractStartingPositionsPerSet(lineups) {
             if (isNaN(setNum)) return;
             const pos = p.playing_position[setKey];
             if (pos === null || pos === undefined) return;
-            if (!sets[setNum]) sets[setNum] = { A: {}, B: {} };
+            if (!sets[setNum]) sets[setNum] = {};
             const team = p.team_id; // caller can map team ids to A/B
             // We'll store by team id at this utility level; caller can separate by team
             if (!sets[setNum][team]) sets[setNum][team] = {};
