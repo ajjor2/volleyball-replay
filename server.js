@@ -1,9 +1,12 @@
-const http = require('http');
-const path = require('path');
-const fs = require('fs');
-const url = require('url');
-const { request: httpRequest } = require('http');
-const { request: httpsRequest } = require('https');
+import http from 'http';
+import path, { dirname } from 'path';
+import fs from 'fs';
+import url, { fileURLToPath } from 'url';
+import { request as httpRequest } from 'http';
+import { request as httpsRequest } from 'https';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 const PORT = process.env.PORT || 3000;
 const PUBLIC_DIR = path.resolve(__dirname);
