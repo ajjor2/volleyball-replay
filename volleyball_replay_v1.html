@@ -199,6 +199,21 @@
                 </div>
             </div>
 
+            <!-- Playback controls moved directly under the court for better UX -->
+            <div class="text-center my-4 space-x-2" aria-label="Playback controls">
+                <button id="prev-event" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg transition duration-150 ease-in-out" disabled>
+                    Previous Event
+                </button>
+                <button id="play-pause-btn" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg transition duration-150 ease-in-out w-24" disabled>
+                    Play
+                </button>
+                <button id="next-event" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition duration-150 ease-in-out" disabled>
+                    Next Event
+                </button>
+                <button id="skip-to-end-btn" class="bg-purple-500 hover:bg-purple-600 text-white font-bold py-2 px-4 rounded-lg transition duration-150 ease-in-out" disabled>
+                    Skip to End
+                </button>
+            </div>
             <div id="all-rallies-duration-chart-area" class="mt-8 mb-2 opacity-50">
                 <h3 class="text-xl font-semibold mb-3 text-center text-gray-700">All Rallies: Durations (seconds)</h3>
                 <div id="all-rallies-duration-visualization" class="rally-chart-visualization p-4 border border-gray-300 rounded-md bg-gray-50 min-h-[280px]">
