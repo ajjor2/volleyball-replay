@@ -294,7 +294,8 @@ if (gameStats_ComplexSubs) {
     // This is a known limitation: player positions are only updated by `setGameStartingLineup` and `rotateGameTeam`.
     // So P1A will get all serves if Team A keeps possession.
     // P1A serves for e2, p1, p2(P2A scores but P1A is P1), p3, p4. Total = 5
-    // The test assertion has been changed to reflect the actual behavior of the code.
+
+feature/update-ai-prompt
     assertEqual(gameStats_ComplexSubs.playerStats["P1A"].serves, 4, "Test C_CS10: P1A Serves (Corrected for position tracking limitation)");
     assertEqual(gameStats_ComplexSubs.playerStats["P2A"].serves, 1, "Test C_CS11: P2A Serves (due to position tracking limitation)");
 }
