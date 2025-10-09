@@ -233,8 +233,8 @@
                     <p class="text-center text-gray-500">Player-scored rally duration chart will appear here.</p>
                 </div>
             </div>
-            
-            <div id="player-scored-rally-stats-summary-area" class="mt-0 mb-6 opacity-50"> 
+
+            <div id="player-scored-rally-stats-summary-area" class="mt-0 mb-6 opacity-50">
                  <h4 class="text-lg font-semibold mb-2 text-center text-gray-600">Player-Scored Rallies: Length Analysis</h4>
                  <div id="player-scored-rally-stats-summary-content" class="p-3 border border-gray-200 rounded-md bg-gray-50 text-sm">
                      <p class="text-center text-gray-500">Statistics for rallies scored by a specific player will appear here.</p>
@@ -283,7 +283,7 @@
                     </table>
                 </div>
             </div>
-        </div> 
+        </div>
         <div class="mt-8 text-center">
             <button id="toggle-advanced-stats-btn" class="bg-gray-700 hover:bg-gray-800 text-white font-bold py-2 px-4 rounded-lg transition duration-150 ease-in-out" disabled>
                 Show Advanced Game Statistics
@@ -292,7 +292,7 @@
 
         <div id="advanced-stats-container" class="mt-6 border-t border-gray-300 pt-4" style="display: none;">
             <h2 class="text-xl font-bold text-center mb-4 text-gray-800">Advanced Game Statistics</h2>
-            
+
             <div id="advanced-set-summaries-section" class="advanced-stats-section mb-6">
                 <h5>Set Summaries</h5>
                 <div id="advanced-set-summaries-content"><p class="text-gray-400 italic text-center">Data will appear here.</p></div>
@@ -307,7 +307,7 @@
                 <h5>Longest Point Runs</h5>
                 <div id="advanced-pointruns-content"><p class="text-gray-400 italic text-center">Data will appear here.</p></div>
             </div>
-            
+
             <div id="advanced-player-points-set-section" class="advanced-stats-section mb-6">
                 <h5>Player Points Per Set</h5>
                 <div id="advanced-player-points-set-content"><p class="text-gray-400 italic text-center">Data will appear here.</p></div>
@@ -360,8 +360,7 @@
             </div>
         </div>
 
-
-    </div> 
+    </div>
     <script type="module">
     import { calculateGameStats, parseTimeToSeconds, formatSecondsToMMSS, calculateServingStreaks } from './js/stats_calculator.js';
 
@@ -458,8 +457,9 @@
             toggleAdvancedStatsBtn, advancedStatsContainerEl, advancedSetSummariesContentEl,
             advancedSideoutContentEl, advancedPointrunsContentEl, advancedPlayerPointsSetContentEl,
             advancedLeadChangesMaxLeadsContentEl, advancedTimeoutPerformanceContentEl, advancedServingStreaksContentEl,
-            advancedServeReceivePointsContentEl, advancedAvgPointsServiceTurnContentEl; 
-        
+            advancedServeReceivePointsContentEl, advancedAvgPointsServiceTurnContentEl,
+            openRouterApiKeyInput, generateAiAnalysisBtn, aiAnalysisStatusEl, aiAnalysisOutputAreaEl, aiAnalysisContainerEl;
+
         let loadedGameData = null, currentEventIndex = -1, sortedEvents = [], currentSet = 0;
         let teamAPoints = 0, teamBPoints = 0, teamASets = 0, teamBSets = 0;
         let servingTeam = null, lastServingTeam = null;
@@ -472,8 +472,8 @@
         let pointScorerHighlightTimeout = null, lostPointHighlightTimeout = null;
         let gameHistory = [];
         let isPlaying = false, playIntervalId = null;
-        let currentGameAdvancedStats = null; 
-        let advancedStatsRendered = false; 
+        let currentGameAdvancedStats = null;
+        let advancedStatsRendered = false;
 
         function setStatusMessage(element, message, type = 'info') { if(element) {element.textContent = message; let className = 'mt-2 text-sm h-5 '; if (type === 'loading') className += 'status-loading'; else if (type === 'error') className += 'status-error'; else if (type === 'success') className += 'status-success'; element.className = className;} }
 
@@ -498,33 +498,33 @@
                         const scoreMatch = event.description?.match(/(\d+)-(\d+)/); if (scoreMatch) { const newScoreA = parseInt(scoreMatch[1]); const newScoreB = parseInt(scoreMatch[2]); if (newScoreA > setScoreA) scoringTeamSymbol = 'A'; else if (newScoreB > setScoreB) scoringTeamSymbol = 'B'; setScoreA = newScoreA; setScoreB = newScoreB; }
                         let rallyScorerPlayerId = null; if (event.player_id && String(event.player_id) !== '1') { rallyScorerPlayerId = String(event.player_id); }
                         rallyDurations.push({ rallyOverallNumber: rallyDurations.length + 1, rallyInSetNumber: rallyInSetCounter, setNumber: currentSetNumberForRally, durationSeconds: duration, startTimeWallTime: lastRallyStartTimeSeconds ? formatSecondsToMMSS(lastRallyStartTimeSeconds % (24*3600)).replace(/^00:/, '') : "N/A", endTimeWallTime: event.wall_time, scoringTeam: scoringTeamSymbol, scorerPlayerId: rallyScorerPlayerId });
-                    } lastRallyStartTimeSeconds = eventTimeSeconds; 
+                    } lastRallyStartTimeSeconds = eventTimeSeconds;
                 } else if (event.code === 'lopetaottelu') { break; }
             } return rallyDurations;
         }
 
         function displayGenericRallyDurationBarChart(rallyDurations, targetVisualizationEl, chartTitle) {
-            targetVisualizationEl.innerHTML = ''; 
+            targetVisualizationEl.innerHTML = '';
             if (!rallyDurations || rallyDurations.length === 0) { targetVisualizationEl.innerHTML = `<p class="text-center text-gray-500">No rally data for "${chartTitle}".</p>`; return; }
             const validRallies = rallyDurations.filter(r => r.durationSeconds > 0);
             if (validRallies.length === 0) { targetVisualizationEl.innerHTML = `<p class="text-center text-gray-500">No valid positive rally durations for "${chartTitle}".</p>`; return; }
             const maxDuration = Math.ceil(Math.max(...validRallies.map(r => r.durationSeconds)));
-            const chartHeight = 220; const xAxisLabelHeight = 30; const yAxisLabelWidth = 35; const chartAreaPaddingTop = 10; 
-            const totalSvgHeight = chartHeight + xAxisLabelHeight + chartAreaPaddingTop; const barGap = 3; const minBarWidth = 5; 
-            const chartDrawableWidth = targetVisualizationEl.clientWidth > yAxisLabelWidth ? targetVisualizationEl.clientWidth - yAxisLabelWidth : 200; 
+            const chartHeight = 220; const xAxisLabelHeight = 30; const yAxisLabelWidth = 35; const chartAreaPaddingTop = 10;
+            const totalSvgHeight = chartHeight + xAxisLabelHeight + chartAreaPaddingTop; const barGap = 3; const minBarWidth = 5;
+            const chartDrawableWidth = targetVisualizationEl.clientWidth > yAxisLabelWidth ? targetVisualizationEl.clientWidth - yAxisLabelWidth : 200;
             const calculatedBarWidth = Math.max(minBarWidth, (chartDrawableWidth - (validRallies.length * barGap)) / validRallies.length);
             const totalContentWidthBars = validRallies.length * (calculatedBarWidth + barGap);
             const totalSvgWidth = totalContentWidthBars + yAxisLabelWidth;
             const svgNS = "http://www.w3.org/2000/svg"; const svg = document.createElementNS(svgNS, "svg");
             svg.setAttribute("width", Math.max(targetVisualizationEl.clientWidth, totalSvgWidth)); svg.setAttribute("height", totalSvgHeight); svg.style.display = "block";
-            const numTicks = 5; 
+            const numTicks = 5;
             for (let i = 0; i <= numTicks; i++) {
                 const tickValue = (maxDuration / numTicks) * i; const tickY = chartAreaPaddingTop + chartHeight - (tickValue / maxDuration) * chartHeight;
                 const textLabel = document.createElementNS(svgNS, "text"); textLabel.setAttribute("x", yAxisLabelWidth - 5); textLabel.setAttribute("y", tickY + 3); textLabel.classList.add("y-axis-label"); textLabel.textContent = `${Math.round(tickValue)}s`; svg.appendChild(textLabel);
                 const gridLine = document.createElementNS(svgNS, "line"); gridLine.setAttribute("x1", yAxisLabelWidth); gridLine.setAttribute("y1", tickY); gridLine.setAttribute("x2", yAxisLabelWidth + totalContentWidthBars); gridLine.setAttribute("y2", tickY); gridLine.classList.add("y-axis-line"); svg.appendChild(gridLine);
             }
             validRallies.forEach((rally, index) => {
-                const barHeight = maxDuration > 0 ? (rally.durationSeconds / maxDuration) * chartHeight : 0; const x = yAxisLabelWidth + index * (calculatedBarWidth + barGap); 
+                const barHeight = maxDuration > 0 ? (rally.durationSeconds / maxDuration) * chartHeight : 0; const x = yAxisLabelWidth + index * (calculatedBarWidth + barGap);
                 const rect = document.createElementNS(svgNS, "rect"); rect.setAttribute("x", x); rect.setAttribute("y", chartAreaPaddingTop + chartHeight - barHeight); rect.setAttribute("width", calculatedBarWidth); rect.setAttribute("height", barHeight);
                 let barColor = "#9ca3af"; const isTeamAInfoAvailable = teamAId && playerStats && Object.values(playerStats).some(p => p.team === 'A'); const isTeamBInfoAvailable = teamBId && playerStats && Object.values(playerStats).some(p => p.team === 'B');
                 if (rally.scoringTeam === 'A' && isTeamAInfoAvailable) barColor = "#3b82f6"; else if (rally.scoringTeam === 'B' && isTeamBInfoAvailable) barColor = "#ef4444";
@@ -537,19 +537,19 @@
         }
 
         function displayRallyStatsSummary(rallyDurationsData) {
-            rallyStatsSummaryContentEl.innerHTML = ''; 
+            rallyStatsSummaryContentEl.innerHTML = '';
             if (!rallyDurationsData || rallyDurationsData.length === 0) { rallyStatsSummaryContentEl.innerHTML = '<p class="text-center text-gray-500">No rally data to calculate statistics.</p>'; return; }
-            const durations = rallyDurationsData.map(r => r.durationSeconds).filter(d => d > 0); 
+            const durations = rallyDurationsData.map(r => r.durationSeconds).filter(d => d > 0);
             if (durations.length === 0) { rallyStatsSummaryContentEl.innerHTML = '<p class="text-center text-gray-500">No valid positive rally durations found.</p>'; return; }
             const mean = calculateMean(durations); const median = calculateMedian(durations); const range = calculateRange(durations); const stdDev = calculateStandardDeviation(durations);
-            const statsTable = document.createElement('table'); statsTable.id = 'rally-stats-summary-table'; statsTable.className = 'w-full advanced-stats-table'; 
+            const statsTable = document.createElement('table'); statsTable.id = 'rally-stats-summary-table'; statsTable.className = 'w-full advanced-stats-table';
             const tbody = statsTable.createTBody();
             function addStatRow(label, value, unit = 's') { const row = tbody.insertRow(); const cellLabel = row.insertCell(); cellLabel.textContent = label; cellLabel.className = 'font-semibold text-gray-600'; const cellValue = row.insertCell(); if (typeof value === 'number' && !isNaN(value)) { cellValue.textContent = unit ? value.toFixed(1) + unit : value.toString(); } else { cellValue.textContent = value || 'N/A'; } cellValue.className = 'text-gray-800'; }
             addStatRow('Total Rallies Analyzed:', durations.length, null); addStatRow('Mean Rally Length:', mean); addStatRow('Median Rally Length:', median); addStatRow('Shortest Rally (Min):', range.min); addStatRow('Longest Rally (Max):', range.max); addStatRow('Standard Deviation:', stdDev);
             rallyStatsSummaryContentEl.appendChild(statsTable);
         }
         function displayPlayerScoredRallyStatsSummary(rallyDurationsData) {
-            playerScoredRallyStatsSummaryContentEl.innerHTML = ''; 
+            playerScoredRallyStatsSummaryContentEl.innerHTML = '';
             if (!rallyDurationsData || rallyDurationsData.length === 0) { playerScoredRallyStatsSummaryContentEl.innerHTML = '<p class="text-center text-gray-500">No rally data to calculate statistics.</p>'; return; }
             const playerScoredRallies = rallyDurationsData.filter(r => r.scorerPlayerId !== null);
             if (playerScoredRallies.length === 0) { playerScoredRallyStatsSummaryContentEl.innerHTML = '<p class="text-center text-gray-500">No rallies were found with a specific player marked as scorer.</p>'; return; }
@@ -573,14 +573,14 @@
                     if (!currentSetData || currentSetData.setNumber !== eventPeriod) { currentSetData = { setNumber: eventPeriod, startTime: parseTimeToSeconds(event.wall_time), endTime: null, durationSeconds: null, scoreA: 0, scoreB: 0, winningTeamName: null, margin: null }; }
                 }
                 if (currentSetData && event.period == currentSetData.setNumber) {
-                    if (event.code === 'piste') { const scoreMatch = event.description?.match(/(\d+)-(\d+)/); if (scoreMatch) { currentSetData.scoreA = parseInt(scoreMatch[1]); currentSetData.scoreB = parseInt(scoreMatch[2]); } } 
-                    else if (event.code === 'maali') { 
+                    if (event.code === 'piste') { const scoreMatch = event.description?.match(/(\d+)-(\d+)/); if (scoreMatch) { currentSetData.scoreA = parseInt(scoreMatch[1]); currentSetData.scoreB = parseInt(scoreMatch[2]); } }
+                    else if (event.code === 'maali') {
                         currentSetData.endTime = parseTimeToSeconds(event.wall_time);
                         if (currentSetData.startTime && currentSetData.endTime) { currentSetData.durationSeconds = currentSetData.endTime - currentSetData.startTime; }
-                        if (currentSetData.scoreA > currentSetData.scoreB) { currentSetData.winningTeamName = teamAName; currentSetData.margin = currentSetData.scoreA - currentSetData.scoreB; } 
-                        else if (currentSetData.scoreB > currentSetData.scoreA) { currentSetData.winningTeamName = teamBName; currentSetData.margin = currentSetData.scoreB - currentSetData.scoreA; } 
+                        if (currentSetData.scoreA > currentSetData.scoreB) { currentSetData.winningTeamName = teamAName; currentSetData.margin = currentSetData.scoreA - currentSetData.scoreB; }
+                        else if (currentSetData.scoreB > currentSetData.scoreA) { currentSetData.winningTeamName = teamBName; currentSetData.margin = currentSetData.scoreB - currentSetData.scoreA; }
                         else { currentSetData.winningTeamName = "Tie/Ongoing"; currentSetData.margin = 0; }
-                        setSummaries.push(currentSetData); currentSetData = null; 
+                        setSummaries.push(currentSetData); currentSetData = null;
                     }
                 }
             });
@@ -589,7 +589,7 @@
                 if (gameEndEvent) {
                     currentSetData.endTime = parseTimeToSeconds(gameEndEvent.wall_time);
                      if (currentSetData.startTime && currentSetData.endTime) { currentSetData.durationSeconds = currentSetData.endTime - currentSetData.startTime; }
-                     if (currentSetData.scoreA > currentSetData.scoreB) { currentSetData.winningTeamName = teamAName; currentSetData.margin = currentSetData.scoreA - currentSetData.scoreB; } 
+                     if (currentSetData.scoreA > currentSetData.scoreB) { currentSetData.winningTeamName = teamAName; currentSetData.margin = currentSetData.scoreA - currentSetData.scoreB; }
                      else if (currentSetData.scoreB > currentSetData.scoreA) { currentSetData.winningTeamName = teamBName; currentSetData.margin = currentSetData.scoreB - currentSetData.scoreA; }
                 }
                 if(currentSetData) setSummaries.push(currentSetData);
@@ -600,21 +600,21 @@
         function calculateSideOutAndPointRuns(gameSortedEvents, teamAId_param, teamBId_param) {
             let sideOutsA = { opportunities: 0, successful: 0 }; let sideOutsB = { opportunities: 0, successful: 0 };
             let longestRunA = 0, currentRunA = 0; let longestRunB = 0, currentRunB = 0;
-            let currentServingTeamId = null; 
+            let currentServingTeamId = null;
             gameSortedEvents.forEach(event => {
                 const eventPeriod = parseInt(event.period);
                 if (event.code === 'aloitajakso') { currentServingTeamId = null; currentRunA = 0; currentRunB = 0; }
-                else if (event.code === 'aloittavajoukkue') { currentServingTeamId = String(event.team_id); } 
+                else if (event.code === 'aloittavajoukkue') { currentServingTeamId = String(event.team_id); }
                 else if (event.code === 'piste') {
-                    const pointWinnerIdByEvent = String(event.team_id); 
+                    const pointWinnerIdByEvent = String(event.team_id);
                     if (currentServingTeamId && currentServingTeamId !== pointWinnerIdByEvent) {
-                        if (currentServingTeamId === teamAId_param) { sideOutsB.opportunities++; sideOutsB.successful++; } 
+                        if (currentServingTeamId === teamAId_param) { sideOutsB.opportunities++; sideOutsB.successful++; }
                         else if (currentServingTeamId === teamBId_param) { sideOutsA.opportunities++; sideOutsA.successful++; }
                     } else if (currentServingTeamId && currentServingTeamId === pointWinnerIdByEvent) {
                         if (currentServingTeamId === teamAId_param) sideOutsB.opportunities++; else if (currentServingTeamId === teamBId_param) sideOutsA.opportunities++;
                     }
                     currentServingTeamId = pointWinnerIdByEvent;
-                    if (pointWinnerIdByEvent === teamAId_param) { currentRunA++; longestRunA = Math.max(longestRunA, currentRunA); currentRunB = 0; } 
+                    if (pointWinnerIdByEvent === teamAId_param) { currentRunA++; longestRunA = Math.max(longestRunA, currentRunA); currentRunB = 0; }
                     else if (pointWinnerIdByEvent === teamBId_param) { currentRunB++; longestRunB = Math.max(longestRunB, currentRunB); currentRunA = 0; }
                 }
             });
@@ -631,9 +631,9 @@
                 }
             }); return playerSetPoints;
         }
-        
+
         function calculateLeadChangesAndMaxLeads(gameSortedEvents, teamAId_param, teamBId_param) {
-            const setStats = {}; let currentSetScores = {A: 0, B: 0}; let currentSetLeadingTeam = null; 
+            const setStats = {}; let currentSetScores = {A: 0, B: 0}; let currentSetLeadingTeam = null;
             let currentPeriod = 0;
             gameSortedEvents.forEach(event => {
                 const eventPeriod = parseInt(event.period);
@@ -669,9 +669,9 @@
                     for (let j = i + 1; j < gameSortedEvents.length; j++) { if (gameSortedEvents[j].code === 'piste') { nextPointEvent = gameSortedEvents[j]; break; } if (gameSortedEvents[j].code === 'aikalisa' || gameSortedEvents[j].code === 'aloitajakso' || gameSortedEvents[j].code === 'maali') break; }
                     if (nextPointEvent) {
                         const pointWinnerId = String(nextPointEvent.team_id);
-                        if (timeoutTeamId === teamAId_param) { perf.teamA_afterOwn.opportunities++; if (pointWinnerId === teamAId_param) perf.teamA_afterOwn.scored++; } 
+                        if (timeoutTeamId === teamAId_param) { perf.teamA_afterOwn.opportunities++; if (pointWinnerId === teamAId_param) perf.teamA_afterOwn.scored++; }
                         else if (timeoutTeamId === teamBId_param) { perf.teamB_afterOwn.opportunities++; if (pointWinnerId === teamBId_param) perf.teamB_afterOwn.scored++; }
-                        if (timeoutTeamId === teamBId_param) { perf.teamA_afterOpponent.opportunities++; if (pointWinnerId === teamAId_param) perf.teamA_afterOpponent.scored++; } 
+                        if (timeoutTeamId === teamBId_param) { perf.teamA_afterOpponent.opportunities++; if (pointWinnerId === teamAId_param) perf.teamA_afterOpponent.scored++; }
                         else if (timeoutTeamId === teamAId_param) { perf.teamB_afterOpponent.opportunities++; if (pointWinnerId === teamBId_param) perf.teamB_afterOpponent.scored++; }
                     }
                 }
@@ -681,7 +681,7 @@
         }
 
         // Serving-streaks calculation moved into `js/stats_calculator.js` and is imported in the module.
-        
+
         function calculateServeReceiveAndBreakPoints(gameSortedEvents, teamAId_param, teamBId_param) {
             const stats = {
                 teamA: { pointsOnOwnServe: 0, pointsOnOpponentServe: 0, breakPointsWon: 0, serviceOpportunities: 0 },
@@ -706,11 +706,11 @@
                     // Update serving team for next point & count new service opportunity if sideout
                     if (currentServingTeamId !== pointWinnerId) {
                         currentServingTeamId = pointWinnerId;
-                        if (currentServingTeamId === teamAId_param) stats.teamA.serviceOpportunities++; 
+                        if (currentServingTeamId === teamAId_param) stats.teamA.serviceOpportunities++;
                         else if (currentServingTeamId === teamBId_param) stats.teamB.serviceOpportunities++;
                     }
                 } else if (event.code === 'aloitajakso') {
-                    currentServingTeamId = null; 
+                    currentServingTeamId = null;
                 }
             });
             return stats;
@@ -737,25 +737,25 @@
                 } else if (event.code === 'piste') {
                     const pointWinnerId = String(event.team_id);
                     if (currentServingTeamId) {
-                        if (currentServingTeamId === pointWinnerId) { 
+                        if (currentServingTeamId === pointWinnerId) {
                             pointsThisTurn++;
-                        } else { 
+                        } else {
                             if (currentServingTeamId === teamAId_param) stats.teamA.totalPointsOnServiceTurns += pointsThisTurn;
                             else if (currentServingTeamId === teamBId_param) stats.teamB.totalPointsOnServiceTurns += pointsThisTurn;
-                            
-                            currentServingTeamId = pointWinnerId; 
-                            pointsThisTurn = 0; 
+
+                            currentServingTeamId = pointWinnerId;
+                            pointsThisTurn = 0;
                             if (currentServingTeamId === teamAId_param) stats.teamA.totalServiceTurns++;
                             else if (currentServingTeamId === teamBId_param) stats.teamB.totalServiceTurns++;
                         }
-                    } else { 
+                    } else {
                         currentServingTeamId = pointWinnerId;
                         pointsThisTurn = 0;
                         if (currentServingTeamId === teamAId_param) stats.teamA.totalServiceTurns++;
                         else if (currentServingTeamId === teamBId_param) stats.teamB.totalServiceTurns++;
                     }
                 } else if (event.code === 'aloitajakso') {
-                    if (currentServingTeamId && pointsThisTurn >= 0) { 
+                    if (currentServingTeamId && pointsThisTurn >= 0) {
                          if (currentServingTeamId === teamAId_param) stats.teamA.totalPointsOnServiceTurns += pointsThisTurn;
                          else if (currentServingTeamId === teamBId_param) stats.teamB.totalPointsOnServiceTurns += pointsThisTurn;
                     }
@@ -775,7 +775,7 @@
         function renderSetSummariesTable(setSummaries, targetElementId) {
             const contentEl = document.getElementById(targetElementId); contentEl.innerHTML = '';
             if (!setSummaries || setSummaries.length === 0) { contentEl.innerHTML = '<p>No set summary data available.</p>'; return; }
-            const table = document.createElement('table'); table.className = 'w-full advanced-stats-table text-center'; 
+            const table = document.createElement('table'); table.className = 'w-full advanced-stats-table text-center';
             const thead = table.createTHead(); const headerRow = thead.insertRow();
             ["Set", "Score", "Winner", "Margin", "Duration"].forEach(text => { const th = document.createElement('th'); th.textContent = text; headerRow.appendChild(th); });
             const tbody = table.createTBody();
@@ -786,7 +786,7 @@
         function renderSideOutPercentageTable(sideOutData, targetElementId) {
             const contentEl = document.getElementById(targetElementId); contentEl.innerHTML = '';
             if (!sideOutData) { contentEl.innerHTML = '<p>No side-out data available.</p>'; return; }
-            const table = document.createElement('table'); table.className = 'w-full md:w-3/4 lg:w-1/2 mx-auto advanced-stats-table'; 
+            const table = document.createElement('table'); table.className = 'w-full md:w-3/4 lg:w-1/2 mx-auto advanced-stats-table';
             const thead = table.createTHead(); const headerRow = thead.insertRow();
             ["Team", "Side-Out %", "Successful/Opportunities"].forEach(text => { const th = document.createElement('th'); th.textContent = text; headerRow.appendChild(th); });
             const tbody = table.createTBody();
@@ -851,7 +851,7 @@
             addRow("After Own Timeout", teamBNameEl.textContent || 'Team B', perfData.teamB_afterOwn); addRow("After Opponent's Timeout", teamBNameEl.textContent || 'Team B', perfData.teamB_afterOpponent);
             contentEl.appendChild(table);
         }
-        
+
         function renderServingStreaksTable(streakData, targetElementId) {
             const contentEl = document.getElementById(targetElementId); contentEl.innerHTML = '';
             if (!streakData || streakData.length === 0) { contentEl.innerHTML = '<p>No serving streak data available.</p>'; return; }
@@ -980,23 +980,175 @@
             advancedStatsRendered = true;
         }
 
-        async function loadTeamMatches() { 
+        // --- START: AI Analysis Logic ---
+
+        /**
+         * Gathers all relevant game statistics into a structured object for the AI.
+         */
+        function collectStatsForAI() {
+            if (!loadedGameData || !currentGameAdvancedStats) {
+                return null;
+            }
+
+            const teamAName = teamANameEl.textContent || 'Team A';
+            const teamBName = teamBNameEl.textContent || 'Team B';
+
+            // Simplify player stats to be more readable for the LLM
+            const simplifiedPlayerStats = (teamSymbol) => {
+                return Object.values(playerStats)
+                    .filter(p => p.team === teamSymbol)
+                    .map(p => ({
+                        name: p.name,
+                        shirtNumber: p.shirt,
+                        points: p.points,
+                        serves: p.serves,
+                        isCaptain: p.isCaptain
+                    }));
+            };
+
+            const stats = {
+                matchInfo: {
+                    teamA: teamAName,
+                    teamB: teamBName,
+                    finalScoreSets: `${teamASets} - ${teamBSets}`,
+                    date: matchDateEl.textContent,
+                    venue: matchVenueEl.textContent,
+                },
+                teamA_Stats: {
+                    players: simplifiedPlayerStats('A'),
+                    timeoutsUsed: teamATimeouts,
+                    substitutions: teamASubs,
+                    impliedOpponentErrors: teamAImpliedOpponentErrors,
+                },
+                teamB_Stats: {
+                    players: simplifiedPlayerStats('B'),
+                    timeoutsUsed: teamBTimeouts,
+                    substitutions: teamBSubs,
+                    impliedOpponentErrors: teamBImpliedOpponentErrors,
+                },
+                advancedStats: {
+                    setSummaries: currentGameAdvancedStats.setSummaries.map(s => ({
+                        set: s.setNumber,
+                        score: `${s.scoreA} - ${s.scoreB}`,
+                        winner: s.winningTeamName,
+                        durationMinutes: s.durationSeconds ? (s.durationSeconds / 60).toFixed(1) : 'N/A'
+                    })),
+                    sideOutPercentage: {
+                        teamA: `${currentGameAdvancedStats.sideOutAndPointRuns.sideOutsTeamA.percentage.toFixed(1)}%`,
+                        teamB: `${currentGameAdvancedStats.sideOutAndPointRuns.sideOutsTeamB.percentage.toFixed(1)}%`
+                    },
+                    longestPointRuns: {
+                        teamA: currentGameAdvancedStats.sideOutAndPointRuns.longestRunTeamA,
+                        teamB: currentGameAdvancedStats.sideOutAndPointRuns.longestRunTeamB
+                    },
+                    longestServingStreaks: currentGameAdvancedStats.servingStreaks.slice(0, 5).map(s => ({ // Top 5
+                        player: `${s.name} (#${s.shirt})`,
+                        team: s.teamSymbol === 'A' ? teamAName : teamBName,
+                        streak: s.streak,
+                        set: s.setNum
+                    })),
+                    pointsOnServeVsReception: {
+                        teamA: currentGameAdvancedStats.serveReceivePoints.teamA,
+                        teamB: currentGameAdvancedStats.serveReceivePoints.teamB
+                    }
+                }
+            };
+
+            return stats;
+        }
+
+
+        /**
+         * Sends the collected stats to OpenRouter.ai for analysis.
+         */
+        async function getAIAnalysis() {
+            const apiKey = openRouterApiKeyInput.value.trim();
+            if (!apiKey) {
+                setStatusMessage(aiAnalysisStatusEl, 'Please enter your OpenRouter.ai API key.', 'error');
+                return;
+            }
+             // Save the key to localStorage for convenience
+            localStorage.setItem('openrouter_api_key', apiKey);
+
+
+            const gameStats = collectStatsForAI();
+            if (!gameStats) {
+                setStatusMessage(aiAnalysisStatusEl, 'Game data is not fully loaded or processed.', 'error');
+                return;
+            }
+
+            setStatusMessage(aiAnalysisStatusEl, 'Analyzing stats with AI...', 'loading');
+            generateAiAnalysisBtn.disabled = true;
+            aiAnalysisOutputAreaEl.innerHTML = '<p class="text-center text-gray-500">AI is thinking...</p>';
+
+            const systemPrompt = `You are a professional volleyball statistics analyst. Your task is to analyze the provided JSON data from a single volleyball match. Provide a concise, insightful summary that is easy for a coach or fan to understand. Structure your response in three distinct sections:
+
+1.  **Overall Summary:** A brief, high-level overview of the match result and flow.
+2.  **Key Findings:** 2-3 bullet points highlighting the most important statistical factors that likely determined the outcome (e.g., a specific player's performance, a key team strength, side-out efficiency).
+3.  **Surprising Insights:** 1-2 bullet points on interesting or unexpected patterns you noticed in the data that might not be obvious at first glance (e.g., a team performing well despite a low side-out rate, a player's unusually high scoring in a single set).
+
+Your tone should be professional, analytical, and objective. Do not just list stats; interpret them.`;
+
+            try {
+                const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+                    method: "POST",
+                    headers: {
+                        "Authorization": `Bearer ${apiKey}`,
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        "model": "openai/gpt-3.5-turbo", // You can change this to any model on OpenRouter
+                        "messages": [
+                            { "role": "system", "content": systemPrompt },
+                            { "role": "user", "content": `Here is the game data in JSON format:\n\n${JSON.stringify(gameStats, null, 2)}` }
+                        ]
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(`API Error: ${response.status} - ${errorData.error?.message || 'Unknown error'}`);
+                }
+
+                const data = await response.json();
+                const analysis = data.choices[0].message.content;
+
+                // Basic formatting for display
+                let formattedAnalysis = analysis
+                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') // Bold
+                    .replace(/\n/g, '<br>');
+
+                aiAnalysisOutputAreaEl.innerHTML = formattedAnalysis;
+                setStatusMessage(aiAnalysisStatusEl, 'Analysis complete.', 'success');
+
+            } catch (error) {
+                console.error('Error fetching AI analysis:', error);
+                setStatusMessage(aiAnalysisStatusEl, `Error: ${error.message}`, 'error');
+                aiAnalysisOutputAreaEl.innerHTML = `<p class="text-center text-red-500">Failed to get analysis. Check your API key and the console for details.</p>`;
+            } finally {
+                generateAiAnalysisBtn.disabled = false;
+            }
+        }
+
+        // --- END: AI Analysis Logic ---
+
+        async function loadTeamMatches() {
             let url = teamMatchesUrlInput.value.trim(); if (!url) { setStatusMessage(teamLoadStatusEl, 'Please enter a Team Matches URL.', 'error'); return; }
-            setStatusMessage(teamLoadStatusEl, 'Loading team matches...', 'loading'); loadTeamMatchesBtn.disabled = true; matchListDisplayAreaEl.innerHTML = ''; 
+            setStatusMessage(teamLoadStatusEl, 'Loading team matches...', 'loading'); loadTeamMatchesBtn.disabled = true; matchListDisplayAreaEl.innerHTML = '';
             try {
                 let parsedUrl; try { parsedUrl = new URL(url); } catch (_) { throw new Error('Invalid URL format.'); }
                 if (!parsedUrl.pathname.includes('getMatches')) { throw new Error('URL does not appear to be a getMatches URL.'); }
                 if (!parsedUrl.searchParams.get('team_id')) { throw new Error('URL is missing the required team_id parameter.'); }
-                
+
                 // Use fetchWithFallback to attempt direct -> local proxy -> public proxies
                 const data = await fetchWithFallback(url, { preferLocalRaw: true, timeoutMs: 12000 });
                 if (!data?.matches || !Array.isArray(data.matches)) { throw new Error('Invalid response format: Missing "matches" array.'); }
                 displayMatchList(data.matches, data.team_name); setStatusMessage(teamLoadStatusEl, `Found ${data.matches.length} matches for ${data.team_name}. Select a game to load.`, 'success');
-            } catch (error) { console.error('Error loading team matches:', error); setStatusMessage(teamLoadStatusEl, `Error: ${error.message}`, 'error'); matchListDisplayAreaEl.innerHTML = '<p class="text-red-500">Could not load matches.</p>'; } 
+            } catch (error) { console.error('Error loading team matches:', error); setStatusMessage(teamLoadStatusEl, `Error: ${error.message}`, 'error'); matchListDisplayAreaEl.innerHTML = '<p class="text-red-500">Could not load matches.</p>'; }
             finally { loadTeamMatchesBtn.disabled = false; }
         }
         function displayMatchList(matches) {
-            matchListDisplayAreaEl.innerHTML = ''; 
+            matchListDisplayAreaEl.innerHTML = '';
             if (matches.length === 0) { matchListDisplayAreaEl.innerHTML = '<p>No matches found for this team.</p>'; return; }
             const listTitle = document.createElement('h3'); listTitle.className = 'text-md font-semibold text-gray-700 mb-2'; listTitle.textContent = 'Select a Game to Replay:'; matchListDisplayAreaEl.appendChild(listTitle);
             const ul = document.createElement('ul'); ul.className = 'space-y-2';
@@ -1013,9 +1165,9 @@
             });
             matchListDisplayAreaEl.appendChild(ul);
         }
-        async function loadGameData(url) { 
+        async function loadGameData(url) {
             if (!url) return;
-            setStatusMessage(loadStatusEl, 'Loading game data...', 'loading'); loadDataBtn.disabled = true; teamLoadStatusEl.textContent = ''; resetUIState(); 
+            setStatusMessage(loadStatusEl, 'Loading game data...', 'loading'); loadDataBtn.disabled = true; teamLoadStatusEl.textContent = ''; resetUIState();
             try {
                 let parsedUrl; try { parsedUrl = new URL(url); } catch (_) { throw new Error('Invalid URL format.'); }
                 if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') { throw new Error('URL must use http or https.'); }
@@ -1023,8 +1175,8 @@
                 // Use fetchWithFallback to attempt direct -> local proxy -> public proxies
                 const data = await fetchWithFallback(url, { preferLocalRaw: false, timeoutMs: 12000 });
                 if (!data?.match?.events || !Array.isArray(data.match.events) || !data?.match?.lineups || !Array.isArray(data.match.lineups) || !data?.match?.team_A_id || !data?.match?.team_B_id) { throw new Error('Invalid game data: Missing critical fields like events, lineups, or team IDs.'); }
-                loadedGameData = data; setStatusMessage(loadStatusEl, 'Game data loaded successfully!', 'success'); initializeGame(); replayUIContainerEl.classList.remove('opacity-50'); 
-            } catch (error) { console.error('Error loading game data:', error); setStatusMessage(loadStatusEl, `Error: ${error.message}`, 'error'); loadedGameData = null; resetUIState(); } 
+                loadedGameData = data; setStatusMessage(loadStatusEl, 'Game data loaded successfully!', 'success'); initializeGame(); replayUIContainerEl.classList.remove('opacity-50');
+            } catch (error) { console.error('Error loading game data:', error); setStatusMessage(loadStatusEl, `Error: ${error.message}`, 'error'); loadedGameData = null; resetUIState(); }
             finally { loadDataBtn.disabled = false; }
         }
         function resetUIState() {
@@ -1036,15 +1188,15 @@
             statsTeamANameEl.textContent = `Team A Stats`; statsTeamBNameEl.textContent = `Team B Stats`;
             statsTeamATbody.innerHTML = ''; statsTeamATfoot.innerHTML = ''; statsTeamBTbody.innerHTML = ''; statsTeamBTfoot.innerHTML = '';
             document.querySelectorAll('.player-marker').forEach(marker => marker.remove());
-            
+
             allRalliesDurationVisualizationEl.innerHTML = '<p class="text-center text-gray-500">Rally duration chart will appear here.</p>';
             allRalliesDurationChartAreaEl.classList.add('opacity-50');
             rallyStatsSummaryContentEl.innerHTML = '<p class="text-center text-gray-500">Rally statistics will appear here.</p>';
             rallyStatsSummaryAreaEl.classList.add('opacity-50');
             playerScoredRalliesDurationVisualizationEl.innerHTML = '<p class="text-center text-gray-500">Player-scored rally chart will appear here.</p>';
             playerScoredRalliesDurationChartAreaEl.classList.add('opacity-50');
-            playerScoredRallyStatsSummaryContentEl.innerHTML = '<p class="text-center text-gray-500">Player-scored rally stats will appear here.</p>'; 
-            playerScoredRallyStatsSummaryAreaEl.classList.add('opacity-50'); 
+            playerScoredRallyStatsSummaryContentEl.innerHTML = '<p class="text-center text-gray-500">Player-scored rally stats will appear here.</p>';
+            playerScoredRallyStatsSummaryAreaEl.classList.add('opacity-50');
 
             advancedStatsContainerEl.style.display = 'none'; toggleAdvancedStatsBtn.textContent = 'Show Advanced Game Statistics'; toggleAdvancedStatsBtn.disabled = true;
             const placeholderText = '<p class="text-gray-400 italic text-center">Data will appear here.</p>';
@@ -1061,17 +1213,22 @@
             advancedAvgPointsServiceTurnContentEl.innerHTML = placeholderText;
             currentGameAdvancedStats = null; advancedStatsRendered = false;
             loadedGameData = null; currentEventIndex = -1; sortedEvents = []; gameHistory = [];
+
+            aiAnalysisContainerEl.style.display = 'none';
+            generateAiAnalysisBtn.disabled = true;
+            aiAnalysisOutputAreaEl.innerHTML = '<p class="text-center text-gray-500">AI analysis will appear here.</p>';
+            setStatusMessage(aiAnalysisStatusEl, '', 'info');
         }
 
         function initializeGame() {
             if (!loadedGameData?.match) { resetUIState(); return; }
-            pausePlayback(); 
+            pausePlayback();
             const matchData = loadedGameData.match;
             teamAId = matchData.team_A_id; teamBId = matchData.team_B_id;
             teamANameEl.textContent = matchData.team_A_name || 'Team A'; statsTeamANameEl.textContent = `${matchData.team_A_name || 'Team A'} Stats`;
             teamBNameEl.textContent = matchData.team_B_name || 'Team B'; statsTeamBNameEl.textContent = `${matchData.team_B_name || 'Team B'} Stats`;
             matchDateEl.textContent = matchData.date || 'N/A'; matchTimeEl.textContent = matchData.time || 'N/A'; matchVenueEl.textContent = matchData.venue_name || 'N/A'; matchRefereeEl.textContent = matchData.referee_1_name || 'N/A'; matchAttendanceEl.textContent = matchData.attendance || '0';
-            
+
             // Use the new stats calculator for final totals
             const finalGameStats = calculateGameStats(loadedGameData);
             teamATimeouts = finalGameStats?.teamAInfo?.timeouts ?? 0;
@@ -1090,13 +1247,13 @@
             const rallyDurationsData = calculateRallyDurations(sortedEvents);
             displayGenericRallyDurationBarChart(rallyDurationsData, allRalliesDurationVisualizationEl, "All Rallies");
             allRalliesDurationChartAreaEl.classList.remove('opacity-50');
-            displayRallyStatsSummary(rallyDurationsData); 
-            rallyStatsSummaryAreaEl.classList.remove('opacity-50'); 
+            displayRallyStatsSummary(rallyDurationsData);
+            rallyStatsSummaryAreaEl.classList.remove('opacity-50');
             const playerScoredRallies = rallyDurationsData.filter(r => r.scorerPlayerId !== null);
             displayGenericRallyDurationBarChart(playerScoredRallies, playerScoredRalliesDurationVisualizationEl, "Player-Scored Rallies");
             playerScoredRalliesDurationChartAreaEl.classList.remove('opacity-50');
-            displayPlayerScoredRallyStatsSummary(rallyDurationsData); 
-            playerScoredRallyStatsSummaryAreaEl.classList.remove('opacity-50'); 
+            displayPlayerScoredRallyStatsSummary(rallyDurationsData);
+            playerScoredRallyStatsSummaryAreaEl.classList.remove('opacity-50');
 
             currentGameAdvancedStats = {
                 setSummaries: calculateSetSummaries(sortedEvents, teamANameEl.textContent, teamBNameEl.textContent),
@@ -1108,11 +1265,14 @@
                 serveReceivePoints: calculateServeReceiveAndBreakPoints(sortedEvents, teamAId, teamBId),
                 avgPointsServiceTurn: calculateAveragePointsPerServiceTurn(sortedEvents, teamAId, teamBId)
             };
-            advancedStatsRendered = false; 
-            toggleAdvancedStatsBtn.disabled = false; 
+            advancedStatsRendered = false;
+            toggleAdvancedStatsBtn.disabled = false;
 
-            replayUIContainerEl.classList.remove('opacity-50'); 
+            replayUIContainerEl.classList.remove('opacity-50');
             displayEvent(0); saveState(); updateStatsTable(); updateSetElapsedTimeUI(null);
+
+            aiAnalysisContainerEl.style.display = 'block';
+            generateAiAnalysisBtn.disabled = false;
         }
 
         function playPlayback() { if (!loadedGameData || isPlaying || currentEventIndex >= sortedEvents.length - 1) return; isPlaying = true; playPauseBtn.textContent = 'Pause'; playPauseBtn.classList.remove('bg-green-500', 'hover:bg-green-600'); playPauseBtn.classList.add('bg-yellow-500', 'hover:bg-yellow-600'); prevEventBtn.disabled = true; nextEventBtn.disabled = true; skipToEndBtn.disabled = true; const advanceStep = () => { if (currentEventIndex < sortedEvents.length - 1) { displayEvent(currentEventIndex + 1, false); const currentEventCode = sortedEvents[currentEventIndex]?.code; if (currentEventCode === 'lopetaottelu') { pausePlayback(); } } else { pausePlayback(); } }; advanceStep(); if (isPlaying) { playIntervalId = setInterval(advanceStep, playbackSpeed); } }
@@ -1157,9 +1317,9 @@
              if (!loadedGameData || index < 0 || index >= sortedEvents.length) return;
             const event = sortedEvents[index];
              let scorerPlayerId = null; let lostPointSide = null;
-             if (event.code === 'piste') { 
-                const scoreMatch = event.description?.match(/(\d+)-(\d+)/); 
-                if (scoreMatch) { const refPointsA = isRestoring ? gameHistory[gameHistory.length-1]?.pointsA : teamAPoints; const refPointsB = isRestoring ? gameHistory[gameHistory.length-1]?.pointsB : teamBPoints; const pointScoredByTeam = (parseInt(scoreMatch[1]) > refPointsA) ? 'A' : 'B'; if (event.player_id && String(event.player_id) !== '1') { scorerPlayerId = String(event.player_id); } else { lostPointSide = pointScoredByTeam === 'A' ? 'B' : 'A'; } } 
+             if (event.code === 'piste') {
+                const scoreMatch = event.description?.match(/(\d+)-(\d+)/);
+                if (scoreMatch) { const refPointsA = isRestoring ? gameHistory[gameHistory.length-1]?.pointsA : teamAPoints; const refPointsB = isRestoring ? gameHistory[gameHistory.length-1]?.pointsB : teamBPoints; const pointScoredByTeam = (parseInt(scoreMatch[1]) > refPointsA) ? 'A' : 'B'; if (event.player_id && String(event.player_id) !== '1') { scorerPlayerId = String(event.player_id); } else { lostPointSide = pointScoredByTeam === 'A' ? 'B' : 'A'; } }
             }
              if (!isRestoring) { if (currentEventIndex >= 0) { saveState(); } processEventForStateUpdate(event); }
              currentEventIndex = index;
@@ -1188,7 +1348,21 @@
             advancedSetSummariesContentEl = document.getElementById('advanced-set-summaries-content'); advancedSideoutContentEl = document.getElementById('advanced-sideout-content'); advancedPointrunsContentEl = document.getElementById('advanced-pointruns-content');
             advancedPlayerPointsSetContentEl = document.getElementById('advanced-player-points-set-content'); advancedLeadChangesMaxLeadsContentEl = document.getElementById('advanced-leadchanges-maxleads-content');
             advancedTimeoutPerformanceContentEl = document.getElementById('advanced-timeout-performance-content'); advancedServingStreaksContentEl = document.getElementById('advanced-serving-streaks-content');
-            advancedServeReceivePointsContentEl = document.getElementById('advanced-serve-receive-points-content'); advancedAvgPointsServiceTurnContentEl = document.getElementById('advanced-avg-points-service-turn-content');
+            advancedServeReceivePointsContentEl = document.getElementById('advanced-serve-receive-points-content');
+            advancedAvgPointsServiceTurnContentEl = document.getElementById('advanced-avg-points-service-turn-content');
+
+            // START: Add these lines for AI Analysis
+            aiAnalysisContainerEl = document.getElementById('ai-analysis-container');
+            openRouterApiKeyInput = document.getElementById('openrouter-api-key');
+            generateAiAnalysisBtn = document.getElementById('generate-ai-analysis-btn');
+            aiAnalysisStatusEl = document.getElementById('ai-analysis-status');
+            aiAnalysisOutputAreaEl = document.getElementById('ai-analysis-output-area');
+
+            // Load saved API key from localStorage
+            if (localStorage.getItem('openrouter_api_key')) {
+                openRouterApiKeyInput.value = localStorage.getItem('openrouter_api_key');
+            }
+            // END: Add these lines for AI Analysis
 
             loadTeamMatchesBtn.addEventListener('click', loadTeamMatches);
             loadDataBtn.addEventListener('click', () => { const url = gameUrlInput.value.trim(); if (url) { loadGameData(url); } else { setStatusMessage(loadStatusEl, 'Please enter a Game Data URL.', 'error'); } });
@@ -1204,6 +1378,7 @@
                     advancedStatsContainerEl.style.display = 'none'; toggleAdvancedStatsBtn.textContent = 'Show Advanced Game Statistics';
                 }
             });
+            generateAiAnalysisBtn.addEventListener('click', getAIAnalysis);
             resetUIState(); setStatusMessage(teamLoadStatusEl, 'Enter a team URL to list matches.', 'info'); setStatusMessage(loadStatusEl, 'Enter a game URL or select from a team list.', 'info');
          });
     </script>
