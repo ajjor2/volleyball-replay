@@ -15,14 +15,10 @@ const mockLineups = [
 
 const expected = {
     '1': {
-        'A': {},
-        'B': {},
         'T1': { '1': { player_id: 'P1', name: 'Alice', shirt: '1' }, '2': { player_id: 'P2', name: 'Bob', shirt: '2' } },
         'T2': { '1': { player_id: 'P3', name: 'Charlie', shirt: '3' } }
     },
     '2': {
-        'A': {},
-        'B': {},
         'T1': { '1': { player_id: 'P1', name: 'Alice', shirt: '1' } }
     }
 };

@@ -132,11 +132,58 @@
             padding-bottom: 0.25rem; /* pb-1 */
             border-bottom: 1px solid #e5e7eb; /* gray-200 */
         }
+        #main-content-container {
+            position: relative;
+        }
+        /* Tooltip for serving streak court layout */
+        #streak-court-tooltip {
+            display: none;
+            position: absolute;
+            background-color: #f9fafb; /* gray-50 */
+            border: 1px solid #9ca3af; /* gray-400 */
+            border-radius: 8px;
+            padding: 0.75rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 100;
+            pointer-events: none; /* So the tooltip itself doesn't block mouse events */
+            width: 320px;
+            transition: opacity 0.1s ease-in-out;
+        }
+        #streak-court-tooltip.visible {
+            display: block;
+        }
+        #streak-court-tooltip-content {
+            /* container for the court inside the tooltip */
+        }
+        #streak-court-tooltip .court-container {
+             border: 1px solid #d1d5db; /* gray-300 */
+        }
+        #streak-court-tooltip .court-side {
+            width: 50%;
+        }
+        #streak-court-tooltip .court-zone {
+            min-height: 40px; /* Smaller zones for the tooltip */
+            font-size: 0.7rem;
+        }
+        #streak-court-tooltip .player-marker {
+            width: 32px;
+            height: 36px;
+            border-radius: 4px;
+        }
+         #streak-court-tooltip .player-marker .shirt-number {
+            font-size: 0.75rem;
+        }
+        #streak-court-tooltip .player-marker .player-name-on-marker {
+            font-size: 0.5rem;
+        }
+         #streak-court-tooltip .net {
+            background-color: #6b7280; /* gray-500 */
+        }
     </style>
 </head>
 <body class="bg-gray-100 font-sans p-4 md:p-8">
 
-    <div class="container mx-auto max-w-4xl bg-white p-6 rounded-lg shadow-lg">
+    <div id="main-content-container" class="container mx-auto max-w-4xl bg-white p-6 rounded-lg shadow-lg">
 
         <h1 class="text-2xl font-bold text-center mb-6 text-gray-800">Volleyball Game Replay</h1>
 
@@ -360,6 +407,14 @@
             </div>
         </div>
 
+        <!-- Tooltip for Serving Streak Court Layout -->
+        <div id="streak-court-tooltip">
+            <h6 class="text-xs font-bold text-center mb-1 text-gray-700">Court State at Start of Streak</h6>
+            <div id="streak-court-tooltip-content" class="flex items-stretch justify-center">
+                <!-- Mini-court will be rendered here by JS -->
+            </div>
+        </div>
+
     </div>
     <script type="module">
     import { calculateGameStats, parseTimeToSeconds, formatSecondsToMMSS, calculateServingStreaks } from './js/stats_calculator.js';
@@ -458,7 +513,8 @@
             advancedSideoutContentEl, advancedPointrunsContentEl, advancedPlayerPointsSetContentEl,
             advancedLeadChangesMaxLeadsContentEl, advancedTimeoutPerformanceContentEl, advancedServingStreaksContentEl,
             advancedServeReceivePointsContentEl, advancedAvgPointsServiceTurnContentEl,
-            openRouterApiKeyInput, generateAiAnalysisBtn, aiAnalysisStatusEl, aiAnalysisOutputAreaEl, aiAnalysisContainerEl;
+            openRouterApiKeyInput, generateAiAnalysisBtn, aiAnalysisStatusEl, aiAnalysisOutputAreaEl, aiAnalysisContainerEl,
+            streakCourtTooltipEl, streakCourtTooltipContentEl, mainContentContainerEl;
 
         let loadedGameData = null, currentEventIndex = -1, sortedEvents = [], currentSet = 0;
         let teamAPoints = 0, teamBPoints = 0, teamASets = 0, teamBSets = 0;
@@ -852,11 +908,100 @@
             contentEl.appendChild(table);
         }
 
+        function showStreakCourtTooltip(streakData, targetElement) {
+            if (!streakCourtTooltipEl || !streakCourtTooltipContentEl || !streakData?.courtState) return;
+
+            streakCourtTooltipContentEl.innerHTML = ''; // Clear previous content
+
+            const courtContainer = document.createElement('div');
+            courtContainer.className = 'flex items-stretch justify-center court-container';
+
+            const courtSideA = document.createElement('div');
+            courtSideA.className = 'court-side w-1/2 grid grid-cols-2 grid-rows-3';
+            ['a-5','a-4','a-6','a-3','a-1','a-2'].forEach(zoneId => {
+                const zone = document.createElement('div');
+                zone.className = 'court-zone';
+                zone.id = `tooltip-zone-${zoneId}`;
+                courtSideA.appendChild(zone);
+            });
+
+            const net = document.createElement('div');
+            net.className = 'net w-0.5 mx-0';
+
+            const courtSideB = document.createElement('div');
+            courtSideB.className = 'court-side w-1/2 grid grid-cols-2 grid-rows-3';
+            ['b-2','b-1','b-3','b-6','b-4','b-5'].forEach(zoneId => {
+                const zone = document.createElement('div');
+                zone.className = 'court-zone';
+                zone.id = `tooltip-zone-${zoneId}`;
+                courtSideB.appendChild(zone);
+            });
+
+            courtContainer.appendChild(courtSideA);
+            courtContainer.appendChild(net);
+            courtContainer.appendChild(courtSideB);
+            streakCourtTooltipContentEl.appendChild(courtContainer);
+
+            // Draw player markers using the saved state
+            const formatPlayerNameForMarker = (fullName) => { if (!fullName || typeof fullName !== 'string') return ''; const parts = fullName.trim().split(' '); if (parts.length === 0) return ''; const firstName = parts[0]; let lastNameInitial = ''; if (parts.length > 1) { lastNameInitial = parts[parts.length - 1].charAt(0).toUpperCase() + '.'; } return parts.length === 1 ? firstName : `${firstName} ${lastNameInitial}`; };
+            const drawMarkers = (positions, teamClass, servingPlayerId) => {
+                for (const zone in positions) {
+                    const playerId = positions[zone];
+                    if (playerId && playerStats[playerId]) {
+                        const zoneEl = document.getElementById(`tooltip-zone-${teamClass}-${zone}`);
+                        if (zoneEl) {
+                            const marker = document.createElement('div');
+                            marker.className = 'player-marker';
+                            marker.classList.add(teamClass === 'a' ? 'team-a' : 'team-b');
+                            const numberSpan = document.createElement('span');
+                            numberSpan.className = 'shirt-number';
+                            numberSpan.textContent = playerStats[playerId].shirt;
+                            const nameSpan = document.createElement('span');
+                            nameSpan.className = 'player-name-on-marker';
+                            nameSpan.textContent = formatPlayerNameForMarker(playerStats[playerId].name);
+                            marker.appendChild(numberSpan);
+                            marker.appendChild(nameSpan);
+                            if (playerId === servingPlayerId) {
+                                marker.classList.add('serving');
+                            }
+                            zoneEl.appendChild(marker);
+                        }
+                    }
+                }
+            };
+            drawMarkers(streakData.courtState.a, 'a', streakData.playerId);
+            drawMarkers(streakData.courtState.b, 'b', streakData.playerId);
+
+            // Position and show the tooltip
+            const mainContainerRect = mainContentContainerEl.getBoundingClientRect();
+            const targetRect = targetElement.getBoundingClientRect();
+
+            let top = (targetRect.bottom - mainContainerRect.top) + 5;
+            let left = (targetRect.left - mainContainerRect.left);
+
+            // Adjust if tooltip goes off-screen
+            if (left + streakCourtTooltipEl.offsetWidth > mainContainerRect.width) {
+                left = mainContainerRect.width - streakCourtTooltipEl.offsetWidth - 20;
+            }
+             if (top + streakCourtTooltipEl.offsetHeight > (window.innerHeight - mainContainerRect.top)) {
+                 top = (targetRect.top - mainContainerRect.top) - streakCourtTooltipEl.offsetHeight - 5;
+            }
+
+
+            streakCourtTooltipEl.style.top = `${top}px`;
+            streakCourtTooltipEl.style.left = `${left}px`;
+            streakCourtTooltipEl.classList.add('visible');
+        }
+
+        function hideStreakCourtTooltip() {
+            if (!streakCourtTooltipEl) return;
+            streakCourtTooltipEl.classList.remove('visible');
+        }
+
         function renderServingStreaksTable(streakData, targetElementId) {
             const contentEl = document.getElementById(targetElementId); contentEl.innerHTML = '';
             if (!streakData || streakData.length === 0) { contentEl.innerHTML = '<p>No serving streak data available.</p>'; return; }
 
-            // Group by team and then sort by streak descending
             const byTeam = { A: [], B: [] };
             streakData.forEach(s => { if (!s) return; if (s.teamSymbol === 'A') byTeam.A.push(s); else byTeam.B.push(s); });
             byTeam.A.sort((a,b) => b.streak - a.streak); byTeam.B.sort((a,b) => b.streak - a.streak);
@@ -869,7 +1014,6 @@
                 if (arr.length === 0) {
                     const p = document.createElement('p'); p.className = 'text-sm text-gray-500'; p.textContent = 'No serving streaks.'; card.appendChild(p);
                 } else {
-                    // Show top 1 for the small card (if multiple, show the best)
                     const best = arr[0];
                     const p = document.createElement('p'); p.innerHTML = `<strong>${best.shirt} - ${best.name}</strong> — Longest serving streak: <strong>${best.streak}</strong> (Set ${best.setNum})`;
                     card.appendChild(p);
@@ -882,19 +1026,29 @@
             topContainer.appendChild(makeTeamCard('A', byTeam.A)); topContainer.appendChild(makeTeamCard('B', byTeam.B));
             contentEl.appendChild(topContainer);
 
-            // Full list table (all streaks)
             const table = document.createElement('table'); table.className = 'w-full md:w-3/4 lg:w-2/3 mx-auto advanced-stats-table';
             const thead = table.createTHead(); const headerRow = thead.insertRow(); ["#", "Player (Shirt - Name)", "Team", "Set", "Streak (consecutive team points)"]
                 .forEach(text => { const th = document.createElement('th'); th.textContent = text; headerRow.appendChild(th); });
             const tbody = table.createTBody();
 
             let idx = 1;
-            const all = [...byTeam.A, ...byTeam.B];
-            all.sort((a,b) => b.streak - a.streak || a.teamSymbol.localeCompare(b.teamSymbol));
+            const all = [...byTeam.A, ...byTeam.B].sort((a,b) => b.streak - a.streak || a.teamSymbol.localeCompare(b.teamSymbol));
+
             all.forEach(s => {
+                if (!s) return;
                 const row = tbody.insertRow();
                 row.insertCell().textContent = idx++;
-                row.insertCell().textContent = `${s.shirt} - ${s.name}`;
+                const playerCell = row.insertCell();
+                playerCell.textContent = `${s.shirt} - ${s.name}`;
+                playerCell.style.cursor = s.courtState ? 'pointer' : 'default';
+                playerCell.style.textDecoration = s.courtState ? 'underline' : 'none';
+                playerCell.style.textDecorationStyle = s.courtState ? 'dotted' : 'none';
+
+                if (s.courtState) {
+                    playerCell.addEventListener('mouseover', (e) => showStreakCourtTooltip(s, e.currentTarget));
+                    playerCell.addEventListener('mouseout', hideStreakCourtTooltip);
+                }
+
                 row.insertCell().textContent = s.teamSymbol === 'A' ? (teamANameEl.textContent || 'Team A') : (teamBNameEl.textContent || 'Team B');
                 row.insertCell().textContent = s.setNum || '-';
                 row.insertCell().textContent = s.streak;
@@ -1369,6 +1523,10 @@ Include all interesting stats and findings
             advancedTimeoutPerformanceContentEl = document.getElementById('advanced-timeout-performance-content'); advancedServingStreaksContentEl = document.getElementById('advanced-serving-streaks-content');
             advancedServeReceivePointsContentEl = document.getElementById('advanced-serve-receive-points-content');
             advancedAvgPointsServiceTurnContentEl = document.getElementById('advanced-avg-points-service-turn-content');
+
+            streakCourtTooltipEl = document.getElementById('streak-court-tooltip');
+            streakCourtTooltipContentEl = document.getElementById('streak-court-tooltip-content');
+            mainContentContainerEl = document.getElementById('main-content-container');
 
             // START: Add these lines for AI Analysis
             aiAnalysisContainerEl = document.getElementById('ai-analysis-container');

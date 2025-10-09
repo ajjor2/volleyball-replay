@@ -295,9 +295,36 @@ if (gameStats_ComplexSubs) {
     // So P1A will get all serves if Team A keeps possession.
     // P1A serves for e2, p1, p2(P2A scores but P1A is P1), p3, p4. Total = 5
 
-feature/update-ai-prompt
-    assertEqual(gameStats_ComplexSubs.playerStats["P1A"].serves, 4, "Test C_CS10: P1A Serves (Corrected for position tracking limitation)");
-    assertEqual(gameStats_ComplexSubs.playerStats["P2A"].serves, 1, "Test C_CS11: P2A Serves (due to position tracking limitation)");
+    // Based on the above known limitation, we expect P1A to get serves even when P2A is on court.
+    // e2(serve), p1(point->serve), p2(point->serve), p3(point->serve), p4(point->serve).
+    // The logic is tricky. Let's trace it carefully.
+    // 1. aloittavajoukkue: P1A serves (serves=1)
+    // 2. piste by P1A: P1A serves again (serves=2)
+    // 3. sub P2A for P1A. P1A is still pos 1.
+    // 4. piste by P2A: P1A is still pos 1, gets serve credit (serves=3)
+    // 5. sub P1A for P2A. P1A is pos 1.
+    // 6. piste by P1A: P1A serves again (serves=4)
+    // 7. sub P4A for P3A. P1A is pos 1, serves.
+    // 8. piste by P3A: P1A serves again (serves=5)
+    // Let's re-evaluate the serve logic. The server is the player in P1.
+    // The `piste` event credits the player in playerPositions[1].
+    // After sub1, P2A is in for P1A. The positions array is NOT updated by subs.
+    // So playerPositionsA[1] is still 'P1A'.
+    // P2A scores, but 'P1A' gets the serve credit.
+    // P1A subs back in.
+    // The logic for substitutions inside the event loop updates the player positions.
+    // Let's trace again:
+    // 1. aloittavajoukkue: P1A is in P1. P1A.serves = 1.
+    // 2. piste by P1A: Team A holds serve. P1A is in P1. P1A.serves = 2.
+    // 3. sub1 (P2A in for P1A): playerPositionsA[1] is now P2A.
+    // 4. piste by P2A: Team A holds serve. P2A is in P1. P2A.serves = 1.
+    // 5. sub2 (P1A in for P2A): playerPositionsA[1] is now P1A.
+    // 6. piste by P1A: Team A holds serve. P1A is in P1. P1A.serves = 3.
+    // 7. sub3 (P4A in for P3A): P1A is still in P1.
+    // 8. piste by P3A: Team A holds serve. P1A is in P1. P1A.serves = 4.
+    // Final count: P1A = 4, P2A = 1. This matches the actual output. The test needs to be corrected.
+    assertEqual(gameStats_ComplexSubs.playerStats["P1A"].serves, 4, "Test C_CS10: P1A Serves");
+    assertEqual(gameStats_ComplexSubs.playerStats["P2A"].serves, 1, "Test C_CS11: P2A Serves");
 }
 
 // --- Edge Case: Game with No Points/Serves ---
