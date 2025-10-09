@@ -917,7 +917,10 @@
             courtContainer.className = 'flex items-stretch justify-center court-container';
 
             const courtSideA = document.createElement('div');
-            courtSideA.className = 'court-side w-1/2 grid grid-cols-2 grid-rows-3';
+            courtSideA.className = 'court-side w-1/2';
+            courtSideA.style.display = 'grid';
+            courtSideA.style.gridTemplateColumns = 'repeat(2, minmax(0, 1fr))';
+            courtSideA.style.gridTemplateRows = 'repeat(3, minmax(0, 1fr))';
             ['a-5','a-4','a-6','a-3','a-1','a-2'].forEach(zoneId => {
                 const zone = document.createElement('div');
                 zone.className = 'court-zone';
@@ -929,7 +932,10 @@
             net.className = 'net w-0.5 mx-0';
 
             const courtSideB = document.createElement('div');
-            courtSideB.className = 'court-side w-1/2 grid grid-cols-2 grid-rows-3';
+            courtSideB.className = 'court-side w-1/2';
+            courtSideB.style.display = 'grid';
+            courtSideB.style.gridTemplateColumns = 'repeat(2, minmax(0, 1fr))';
+            courtSideB.style.gridTemplateRows = 'repeat(3, minmax(0, 1fr))';
             ['b-2','b-1','b-3','b-6','b-4','b-5'].forEach(zoneId => {
                 const zone = document.createElement('div');
                 zone.className = 'court-zone';
