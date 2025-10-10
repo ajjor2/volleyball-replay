@@ -1,4 +1,0 @@
-Local server running at http://localhost:3000/
-Proxy endpoints:
-  /proxy/get?url=<encoded_url>  -> returns { contents: string }
-  /proxy/raw?url=<encoded_url>  -> returns raw content
