@@ -48,23 +48,23 @@ const stats = calculateRotationalStats(mockGameData.match.events, mockGameData, 
 
 // --- Asserts for Team A ---
 const teamAStats = stats.teamA;
-// Rotation A1 is active for p1, p2, p3, p4, p5. Scores: A, A, B, B, A. For: 3, Against: 2.
+// A1 is P1 for p1, p2, p3, p4, p5. Scores: A, A, B, B, A. For: 3, Against: 2.
 assertEqual(teamAStats['A1']?.pointsFor, 3, "Team A, Rotation A1 Points For");
 assertEqual(teamAStats['A1']?.pointsAgainst, 2, "Team A, Rotation A1 Points Against");
-// Rotation A2 is active for p6. Score: B. For: 0, Against: 1.
+// A2 is P1 for p6. Score: B. For: 0, Against: 1.
 assertEqual(teamAStats['A2']?.pointsFor, 0, "Team A, Rotation A2 Points For");
 assertEqual(teamAStats['A2']?.pointsAgainst, 1, "Team A, Rotation A2 Points Against");
 
 
 // --- Asserts for Team B ---
 const teamBStats = stats.teamB;
-// Rotation B1 is active for p1, p2, p3. Scores: A, A, B. For: 1, Against: 2.
+// B1 is P1 for p1, p2, p3. Scores: A, A, B. For: 1, Against: 2.
 assertEqual(teamBStats['B1']?.pointsFor, 1, "Team B, Rotation B1 Points For");
 assertEqual(teamBStats['B1']?.pointsAgainst, 2, "Team B, Rotation B1 Points Against");
-// Rotation B2 is active for p4, p5, p6. Scores: B, A, B. For: 2, Against: 1.
+// B2 is P1 for p4, p5, p6. Scores: B, A, B. For: 2, Against: 1.
 assertEqual(teamBStats['B2']?.pointsFor, 2, "Team B, Rotation B2 Points For");
 assertEqual(teamBStats['B2']?.pointsAgainst, 1, "Team B, Rotation B2 Points Against");
-// Rotation B3 is active after p6, but there are no more points. It should not exist in the stats.
+// B3 rotates into P1 after p6, but no more points are scored.
 assertEqual(teamBStats['B3'], undefined, "Team B, Rotation B3 should be undefined");
 
 

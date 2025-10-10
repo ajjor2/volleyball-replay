@@ -33,11 +33,6 @@ assertEqual(parseTimeToSeconds(undefined), null, "Test 13: Undefined input");
 assertEqual(parseTimeToSeconds("12:34:567"), null, "Test 14: Too many digits in seconds");
 assertEqual(parseTimeToSeconds("12:345:67"), null, "Test 15: Too many digits in minutes");
 assertEqual(parseTimeToSeconds("123:45:67"), null, "Test 16: Too many digits in hours");
-// It might be desirable for future improvement for time parts like '00:60:00' to be null,
-// but current implementation parses them based on parseInt.
-// For now, testing based on current naive parseInt behavior.
-// assertEqual(parseTimeToSeconds("00:60:00"), null, "Test 17: Invalid minute value (60)");
-
 
 console.log('--- Tests for parseTimeToSeconds complete ---');
 
@@ -276,42 +271,6 @@ if (gameStats_ComplexSubs) {
     assertEqual(gameStats_ComplexSubs.playerStats["P4A"].setsPlayedFully, 0, "Test C_CS8: P4A Sets Played Fully (in, out)");
     assertEqual(gameStats_ComplexSubs.playerStats["P4A"].points, 0, "Test C_CS9: P4A Points");
 
-    // Check serves for P1A (initial server)
-    // P1A serves for p1. After sub1, P2A is on court. Team A still serving. P1A is P1 at start.
-    // When P2A comes in for P1A (P1A was P1), who is P1? Let's assume P2A takes P1A's court position.
-    // The code rotates on sideout. Here, Team A keeps serving.
-    // P1A (pos 1) serves (e2). P1A scores (p1). P1A (pos 1) serves again.
-    // P2A subs P1A (pos 1). P2A (pos 1) serves. P2A scores (p2). P2A (pos 1) serves again.
-    // P1A subs P2A (pos 1). P1A (pos 1) serves. P1A scores (p3). P1A (pos 1) serves again.
-    // P4A subs P3A (pos 2). P1A (pos 1) serves.
-    // P3A subs P4A (pos 2). P1A (pos 1) serves. P3A scores (p4). P1A (pos 1) serves again.
-    // Total serves for P1A: (e2) + (after p1) + (after sub2) + (after p3) + (after sub3) + (after sub4) + (after p4) = 7 serves
-    // The logic for who is in P1 after internal subs without rotation is complex.
-    // The current code: `aloittavajoukkue` gives P1A a serve.
-    // `piste` by P1A, `servingTeam`=A, `pointScoredBy`=A. `playerPositionsA[1]` (P1A) gets a serve.
-    // sub1: P2A for P1A. `playerPositionsA` is not updated by subs in current code, only by rotation or set start.
-    // This means `playerPositionsA[1]` remains P1A in the code's internal state for serve crediting if no rotation.
-    // This is a known limitation: player positions are only updated by `setGameStartingLineup` and `rotateGameTeam`.
-    // So P1A will get all serves if Team A keeps possession.
-    // P1A serves for e2, p1, p2(P2A scores but P1A is P1), p3, p4. Total = 5
-
-    // Based on the above known limitation, we expect P1A to get serves even when P2A is on court.
-    // e2(serve), p1(point->serve), p2(point->serve), p3(point->serve), p4(point->serve).
-    // The logic is tricky. Let's trace it carefully.
-    // 1. aloittavajoukkue: P1A serves (serves=1)
-    // 2. piste by P1A: P1A serves again (serves=2)
-    // 3. sub P2A for P1A. P1A is still pos 1.
-    // 4. piste by P2A: P1A is still pos 1, gets serve credit (serves=3)
-    // 5. sub P1A for P2A. P1A is pos 1.
-    // 6. piste by P1A: P1A serves again (serves=4)
-    // 7. sub P4A for P3A. P1A is pos 1, serves.
-    // 8. piste by P3A: P1A serves again (serves=5)
-    // Let's re-evaluate the serve logic. The server is the player in P1.
-    // The `piste` event credits the player in playerPositions[1].
-    // After sub1, P2A is in for P1A. The positions array is NOT updated by subs.
-    // So playerPositionsA[1] is still 'P1A'.
-    // P2A scores, but 'P1A' gets the serve credit.
-    // P1A subs back in.
     // The logic for substitutions inside the event loop updates the player positions.
     // Let's trace again:
     // 1. aloittavajoukkue: P1A is in P1. P1A.serves = 1.
@@ -599,4 +558,4 @@ assertEqual(aggregateStats.team.impliedErrorsMade, 0, "Test N4c: Implied Errors 
 assertEqual(Object.keys(aggregateStats.players).length, 0, "Test N5: Player count (other teams) should be 0");
 
 
-console.log('--- Tests for aggregateGameStats complete ---');
+console.log('--- Tests for calculateGameStats complete ---');

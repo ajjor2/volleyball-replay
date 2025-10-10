@@ -47,4 +47,11 @@ assertEqual(Boolean(bill), true, 'Bill streak entry exists');
 assertEqual(bill && bill.streak, 3, 'Bill streak equals 3');
 assertEqual(bill && bill.setNum, 1, 'Bill streak set is 1');
 
+// Verify that courtState was captured for the streaks
+assertEqual(alice && typeof alice.courtState, 'object', 'Alice streak has courtState object');
+assertEqual(bill && typeof bill.courtState, 'object', 'Bill streak has courtState object');
+assertEqual(alice && alice.courtState && typeof alice.courtState.a, 'object', 'Alice courtState has team A positions');
+assertEqual(bill && bill.courtState && typeof bill.courtState.b, 'object', 'Bill courtState has team B positions');
+
+
 console.log('Serving streaks test (exact values) completed.');

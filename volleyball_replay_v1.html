@@ -921,10 +921,7 @@
             courtContainer.className = 'flex items-stretch justify-center court-container';
 
             const courtSideA = document.createElement('div');
-            courtSideA.className = 'court-side w-1/2';
-            courtSideA.style.display = 'grid';
-            courtSideA.style.gridTemplateColumns = 'repeat(2, minmax(0, 1fr))';
-            courtSideA.style.gridTemplateRows = 'repeat(3, minmax(0, 1fr))';
+            courtSideA.className = 'court-side w-1/2 grid grid-cols-2 grid-rows-3';
             ['a-5','a-4','a-6','a-3','a-1','a-2'].forEach(zoneId => {
                 const zone = document.createElement('div');
                 zone.className = 'court-zone';
@@ -936,10 +933,7 @@
             net.className = 'net w-0.5 mx-0';
 
             const courtSideB = document.createElement('div');
-            courtSideB.className = 'court-side w-1/2';
-            courtSideB.style.display = 'grid';
-            courtSideB.style.gridTemplateColumns = 'repeat(2, minmax(0, 1fr))';
-            courtSideB.style.gridTemplateRows = 'repeat(3, minmax(0, 1fr))';
+            courtSideB.className = 'court-side w-1/2 grid grid-cols-2 grid-rows-3';
             ['b-2','b-1','b-3','b-6','b-4','b-5'].forEach(zoneId => {
                 const zone = document.createElement('div');
                 zone.className = 'court-zone';
@@ -1323,7 +1317,7 @@ ${statsJson}
 
 ${historicalAverages ? `Season averages for comparison: ${JSON.stringify(historicalAverages, null, 2)}` : ''}
 
-Step 1: Analyze Rotational Performance. The `rotationalPerformance` key for each team shows the point differential when a specific player is the server (in position 1). A high positive differential indicates a strong rotation. A negative one is a weak rotation. Identify the BEST and WORST rotation for each team. For the worst rotation, speculate on the cause (e.g., weak server, poor serve receive, bad matchup).
+Step 1: Analyze Rotational Performance. The \`rotationalPerformance\` key for each team shows the point differential when a specific player is the server (in position 1). A high positive differential indicates a strong rotation. A negative one is a weak rotation. Identify the BEST and WORST rotation for each team. For the worst rotation, speculate on the cause (e.g., weak server, poor serve receive, bad matchup).
 Step 2: Scan for other anomalies (e.g., a player's high point total but low serving streak, unusual error clusters, or significant side-out percentage differences).
 Step 3: Identify key patterns (e.g., a team's success being tied to a specific player's performance, or one team dominating after timeouts).
 Step 4: Suggest 2-3 actionable, specific tweaks for the losing team for a potential rematch.
@@ -1481,7 +1475,12 @@ Provide your analysis in the following format:
         }
 
         function initializeGame() {
-            if (!loadedGameData?.match) { resetUIState(); return; }
+            console.log("DEBUG: Starting initializeGame...");
+            if (!loadedGameData?.match) {
+                console.error("DEBUG: initializeGame failed - loadedGameData.match is missing.");
+                resetUIState();
+                return;
+            }
             pausePlayback();
             const matchData = loadedGameData.match;
             teamAId = matchData.team_A_id; teamBId = matchData.team_B_id;
@@ -1524,7 +1523,14 @@ Provide your analysis in the following format:
                 servingStreaks: calculateServingStreaks(sortedEvents, loadedGameData, teamAId, teamBId),
                 serveReceivePoints: calculateServeReceiveAndBreakPoints(sortedEvents, teamAId, teamBId),
                 avgPointsServiceTurn: calculateAveragePointsPerServiceTurn(sortedEvents, teamAId, teamBId),
-                rotationalStats: calculateRotationalStats(sortedEvents, loadedGameData, teamAId, teamBId)
+                rotationalStats: (() => {
+                    try {
+                        return calculateRotationalStats(sortedEvents, loadedGameData, teamAId, teamBId);
+                    } catch (e) {
+                        console.error("Error calculating rotational stats:", e);
+                        return { teamA: {}, teamB: {} }; // Return empty object on failure
+                    }
+                })()
             };
             advancedStatsRendered = false;
             toggleAdvancedStatsBtn.disabled = false;
@@ -1534,6 +1540,7 @@ Provide your analysis in the following format:
 
             aiAnalysisContainerEl.style.display = 'block';
             generateAiAnalysisBtn.disabled = false;
+            console.log("DEBUG: initializeGame completed successfully.");
         }
 
         function playPlayback() { if (!loadedGameData || isPlaying || currentEventIndex >= sortedEvents.length - 1) return; isPlaying = true; playPauseBtn.textContent = 'Pause'; playPauseBtn.classList.remove('bg-green-500', 'hover:bg-green-600'); playPauseBtn.classList.add('bg-yellow-500', 'hover:bg-yellow-600'); prevEventBtn.disabled = true; nextEventBtn.disabled = true; skipToEndBtn.disabled = true; const advanceStep = () => { if (currentEventIndex < sortedEvents.length - 1) { displayEvent(currentEventIndex + 1, false); const currentEventCode = sortedEvents[currentEventIndex]?.code; if (currentEventCode === 'lopetaottelu') { pausePlayback(); } } else { pausePlayback(); } }; advanceStep(); if (isPlaying) { playIntervalId = setInterval(advanceStep, playbackSpeed); } }
@@ -1646,6 +1653,15 @@ Provide your analysis in the following format:
             });
             generateAiAnalysisBtn.addEventListener('click', getAIAnalysis);
             resetUIState(); setStatusMessage(teamLoadStatusEl, 'Enter a team URL to list matches.', 'info'); setStatusMessage(loadStatusEl, 'Enter a game URL or select from a team list.', 'info');
+
+            // --- Automatically load game if match_id is in URL ---
+            const urlParams = new URLSearchParams(window.location.search);
+            const matchIdFromUrl = urlParams.get('match_id');
+            if (matchIdFromUrl) {
+                const gameUrl = `${API_BASE_URL}getMatch?match_id=${matchIdFromUrl}`;
+                gameUrlInput.value = gameUrl;
+                loadGameData(gameUrl);
+            }
          });
     </script>
 </body>
