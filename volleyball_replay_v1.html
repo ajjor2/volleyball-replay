@@ -1171,6 +1171,17 @@ Include all interesting stats and findings
         }
 
         /**
+         * Escape special HTML characters in a string to prevent XSS.
+         */
+        function escapeHTML(str) {
+            return str.replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        /**
          * Handles sending a follow-up question to the AI.
          */
         async function askAIFollowUp() {
@@ -1230,7 +1241,7 @@ Include all interesting stats and findings
 
                 const questionDiv = document.createElement('div');
                 questionDiv.className = 'mt-4 pt-4 border-t border-gray-300';
-                questionDiv.innerHTML = `<p class="font-semibold text-gray-600">You asked:</p><p class="italic text-gray-800">"${question}"</p>`;
+                questionDiv.innerHTML = `<p class="font-semibold text-gray-600">You asked:</p><p class="italic text-gray-800">"${escapeHTML(question)}"</p>`;
 
                 const answerDiv = document.createElement('div');
                 answerDiv.className = 'mt-2';
