@@ -7,7 +7,7 @@ This repository contains two related single-page web applications for visualizin
 1.  **Single-Game Replay App:** Allows loading detailed data for a single match and replaying it event-by-event with court visualization and running stats.
 2.  **Team Stats Aggregator App:** Takes a team's match list URL, fetches data for all played games in that list, calculates key statistics for each game, and displays both per-game summaries and aggregated season totals for the specified team. It also includes advanced statistics like rally durations and side-out percentages.
 
-## 1. Single-Game Replay App (`volleyball_replay_v1.html`)
+## 1. Single-Game Replay App (`volleyball-replay-v1.html`)
 
 ### Description
 
@@ -40,13 +40,13 @@ This tool provides a visual step-by-step replay of a single volleyball match usi
 
 ### How to Use
 
-1.  Host the `volleyball-replay-app-v1.html` file or open it directly in a browser.
+1.  Host the `volleyball-replay-v1.html` file or open it directly in a browser.
 2.  **Option A (Recommended):** Find a team's `getMatches` URL (e.g., `.../getMatches?team_id=12345`). Paste it into the "Team Matches URL" input and click "Load Team Matches". Click on a "Played" game from the list that appears.
 3.  **Option B:** Find a specific `getMatch` URL (e.g., `.../getMatch?match_id=701913`). Paste it into the "Specific Game Data URL" input and click "Load Game".
 4.  Use the playback controls to navigate the replay.
 5.  After loading a game, click "Show Advanced Game Statistics" to view the detailed analysis.
 
-## 2. Team Stats Aggregator App (`Team_Season_Statistics_Aggregator.html`)
+## 2. Team Stats Aggregator App (`team-season-stats-aggregator.html`)
 
 ### Description
 
@@ -71,7 +71,7 @@ This tool fetches a list of matches for a specific team, processes all completed
 
 ### How to Use
 
-1.  Host the `Team_Season_Statistics_Aggregator.html` file or open it directly in a browser.
+1.  Host the `team-season-stats-aggregator.html` file or open it directly in a browser.
 2.  Find the `getMatches` URL for the desired team (e.g., `https://lentopallo-api.torneopal.net/taso/rest/getMatches?team_id=50538`).
 3.  Paste the URL into the "Team Matches URL" input field.
 4.  Click "Load & Calculate Stats".
@@ -95,7 +95,7 @@ This tool fetches a list of matches for a specific team, processes all completed
 
 ## Hosting Notes
 
-* You can host either `volleyball-replay-app-v1.html` or `team-stats-app.html` (or both, perhaps renaming one to `index.html`) using static hosting providers like GitHub Pages, Netlify, Vercel etc.
+* You can host either `volleyball-replay-v1.html` or `team-season-stats-aggregator.html` (or both, perhaps renaming one to `index.html`) using static hosting providers like GitHub Pages, Netlify, Vercel etc.
 * Refer to the `github-pages-viewing` document for steps on setting up GitHub Pages.
 * Remember that hosting the file **does not solve the CORS issue** for data loading via URL.
 
@@ -110,7 +110,7 @@ PowerShell example commands:
 npm start
 
 # Open the app in your browser:
-# http://localhost:3000/  (defaults to volleyball_replay_v1.html)
+# http://localhost:3000/  (defaults to volleyball-replay-v1.html)
 
 # Run the JS tests (no dependencies required):
 npm test
