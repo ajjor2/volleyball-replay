@@ -379,6 +379,7 @@
         const API_BASE_URL = "https://lentopallo-api.torneopal.net/taso/rest/";
         const ALLOWED_HOSTNAME = "lentopallo-api.torneopal.net";
         const playbackSpeed = 1500;
+        const AI_MODEL = "openai/gpt-3.5-turbo";
 
         // Network helper: try direct fetch, then local proxy (if localhost), then a list of public proxies.
         async function fetchWithFallback(targetUrl, options = {}) {
@@ -487,6 +488,54 @@
         let currentGameAdvancedStats = null;
         let advancedStatsRendered = false;
         let aiConversationHistory = [];
+        let prefetchedGameData = {};
+
+        async function fetchPlayedGamesInBackground(matches) {
+            const playedGames = matches.filter(m => m.status === 'Played' && m.match_id);
+            if (playedGames.length === 0) return;
+
+            for (const match of playedGames) {
+                const matchId = match.match_id;
+                const listItem = document.querySelector(`.match-list-item[data-match-id='${matchId}']`);
+                const statusEl = listItem ? listItem.querySelector('.match-load-status') : null;
+
+                if (prefetchedGameData[matchId]) {
+                    if (statusEl) {
+                        statusEl.textContent = 'Loaded';
+                        statusEl.classList.add('loaded');
+                    }
+                    continue;
+                }
+
+                if (statusEl) {
+                    statusEl.textContent = 'Loading...';
+                    statusEl.classList.add('loading');
+                }
+
+                try {
+                    await new Promise(resolve => setTimeout(resolve, 1000)); // Add a 1-second delay
+                    const getMatchUrl = `${API_BASE_URL}getMatch?match_id=${matchId}`;
+                    const data = await fetchWithFallback(getMatchUrl, { preferLocalRaw: false, timeoutMs: 12000 });
+                    if (data?.match) {
+                        prefetchedGameData[matchId] = data;
+                        if (statusEl) {
+                            statusEl.textContent = 'Loaded';
+                            statusEl.classList.remove('loading');
+                            statusEl.classList.add('loaded');
+                        }
+                    } else {
+                        throw new Error("Invalid match data received");
+                    }
+                } catch (error) {
+                    console.error(`Failed to pre-fetch match ${matchId}:`, error);
+                    if (statusEl) {
+                        statusEl.textContent = 'Error';
+                        statusEl.classList.remove('loading');
+                        statusEl.classList.add('error');
+                    }
+                }
+            }
+        }
 
         function setStatusMessage(element, message, type = 'info') { if(element) {element.textContent = message; let className = 'mt-2 text-sm h-5 '; if (type === 'loading') className += 'status-loading'; else if (type === 'error') className += 'status-error'; else if (type === 'success') className += 'status-success'; element.className = className;} }
 
@@ -1130,7 +1179,7 @@ Include all interesting stats and findings
                         "Content-Type": "application/json"
                     },
                     body: JSON.stringify({
-                        "model": "openai/gpt-3.5-turbo", // You can change this to any model on OpenRouter
+                        "model": AI_MODEL, // You can change this to any model on OpenRouter
                         "messages": [
                             { "role": "user", "content": prompt }
                         ]
@@ -1152,7 +1201,7 @@ Include all interesting stats and findings
                 ];
 
                 // Basic formatting for display
-                let formattedAnalysis = analysis
+                let formattedAnalysis = escapeHTML(analysis)
                     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') // Bold
                     .replace(/\n/g, '<br>');
 
@@ -1168,6 +1217,24 @@ Include all interesting stats and findings
             } finally {
                 generateAiAnalysisBtn.disabled = false;
             }
+        }
+
+        /**
+         * Escape special HTML characters in a string to prevent XSS.
+         */
+        function escapeHTML(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        /**
+         * Escape special HTML characters in a string to prevent XSS.
+         */
+        function escapeHTML(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
         }
 
         /**
@@ -1216,7 +1283,7 @@ Include all interesting stats and findings
                         "Content-Type": "application/json"
                     },
                     body: JSON.stringify({
-                        "model": "openai/gpt-3.5-turbo",
+                        "model": AI_MODEL,
                         "messages": aiConversationHistory // Send the whole conversation
                     })
                 });
@@ -1235,7 +1302,7 @@ Include all interesting stats and findings
                 aiConversationHistory.push({ "role": "assistant", "content": followUpResponse });
 
                 // Append the response to the output area
-                let formattedResponse = followUpResponse
+                let formattedResponse = escapeHTML(followUpResponse)
                     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
                     .replace(/\n/g, '<br>');
 
@@ -1276,20 +1343,24 @@ Include all interesting stats and findings
                 // Use fetchWithFallback to attempt direct -> local proxy -> public proxies
                 const data = await fetchWithFallback(url, { preferLocalRaw: true, timeoutMs: 12000 });
                 if (!data?.matches || !Array.isArray(data.matches)) { throw new Error('Invalid response format: Missing "matches" array.'); }
-                displayMatchList(data.matches, data.team_name); setStatusMessage(teamLoadStatusEl, `Found ${data.matches.length} matches for ${data.team_name}. Select a game to load.`, 'success');
+                displayMatchList(data.matches, data.team_name);
+                setStatusMessage(teamLoadStatusEl, `Found ${data.matches.length} matches for ${data.team_name}. Select a game to load.`, 'success');
+                fetchPlayedGamesInBackground(data.matches);
             } catch (error) { console.error('Error loading team matches:', error); setStatusMessage(teamLoadStatusEl, `Error: ${error.message}`, 'error'); matchListDisplayAreaEl.innerHTML = '<p class="text-red-500">Could not load matches.</p>'; }
             finally { loadTeamMatchesBtn.disabled = false; }
         }
         function displayMatchList(matches) {
+            console.log('--- ENTERING displayMatchList ---');
             matchListDisplayAreaEl.innerHTML = '';
             if (matches.length === 0) { matchListDisplayAreaEl.innerHTML = '<p>No matches found for this team.</p>'; return; }
             const listTitle = document.createElement('h3'); listTitle.className = 'text-md font-semibold text-gray-700 mb-2'; listTitle.textContent = 'Select a Game to Replay:'; matchListDisplayAreaEl.appendChild(listTitle);
             const ul = document.createElement('ul'); ul.className = 'space-y-2';
             matches.forEach(match => {
                 const li = document.createElement('li'); li.className = 'match-list-item'; li.classList.add(match.status === 'Played' ? 'played' : 'not-played');
+                li.dataset.matchId = match.match_id;
                 const dateStr = match.date ? new Date(match.date).toLocaleDateString() : 'No Date';
                 const score = (match.fs_A !== null && match.fs_B !== null) ? `(${match.fs_A} - ${match.fs_B})` : '';
-                li.innerHTML = `<div class="font-medium">${match.team_A_name || 'Team A'} vs ${match.team_B_name || 'Team B'} ${score}</div> <div class="text-xs text-gray-500">${dateStr} - Status: ${match.status || 'Unknown'}</div>`;
+                li.innerHTML = `<div class="font-medium">${match.team_A_name || 'Team A'} vs ${match.team_B_name || 'Team B'} ${score}</div> <div class="text-xs text-gray-500">${dateStr} - Status: ${match.status || 'Unknown'}</div><div class="match-load-status"></div>`;
                 if (match.status === 'Played' && match.match_id) {
                     li.title = `Click to load replay for match ID ${match.match_id}`;
                     li.addEventListener('click', () => { const getMatchUrl = `${API_BASE_URL}getMatch?match_id=${match.match_id}`; gameUrlInput.value = getMatchUrl; loadGameData(getMatchUrl); replayUIContainerEl.scrollIntoView({ behavior: 'smooth' }); });
@@ -1301,16 +1372,40 @@ Include all interesting stats and findings
         async function loadGameData(url) {
             if (!url) return;
             setStatusMessage(loadStatusEl, 'Loading game data...', 'loading'); loadDataBtn.disabled = true; teamLoadStatusEl.textContent = ''; resetUIState();
+            let matchId = null;
             try {
                 let parsedUrl; try { parsedUrl = new URL(url); } catch (_) { throw new Error('Invalid URL format.'); }
                 if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') { throw new Error('URL must use http or https.'); }
-                if (!parsedUrl.searchParams.get('match_id')) { throw new Error('URL is missing the required match_id parameter for getMatch.'); }
-                // Use fetchWithFallback to attempt direct -> local proxy -> public proxies
+                matchId = parsedUrl.searchParams.get('match_id');
+                if (!matchId) { throw new Error('URL is missing the required match_id parameter for getMatch.'); }
+
+                // Check for pre-fetched data
+                if (prefetchedGameData[matchId]) {
+                    console.log(`Using pre-fetched data for match ID ${matchId}`);
+                    loadedGameData = prefetchedGameData[matchId];
+                    setStatusMessage(loadStatusEl, 'Game data loaded successfully from cache!', 'success');
+                    initializeGame();
+                    replayUIContainerEl.classList.remove('opacity-50');
+                    return; // Exit early
+                }
+
+                // If not pre-fetched, fetch from network
+                console.log(`Fetching data from network for match ID ${matchId}`);
                 const data = await fetchWithFallback(url, { preferLocalRaw: false, timeoutMs: 12000 });
                 if (!data?.match?.events || !Array.isArray(data.match.events) || !data?.match?.lineups || !Array.isArray(data.match.lineups) || !data?.match?.team_A_id || !data?.match?.team_B_id) { throw new Error('Invalid game data: Missing critical fields like events, lineups, or team IDs.'); }
-                loadedGameData = data; setStatusMessage(loadStatusEl, 'Game data loaded successfully!', 'success'); initializeGame(); replayUIContainerEl.classList.remove('opacity-50');
-            } catch (error) { console.error('Error loading game data:', error); setStatusMessage(loadStatusEl, `Error: ${error.message}`, 'error'); loadedGameData = null; resetUIState(); }
-            finally { loadDataBtn.disabled = false; }
+                loadedGameData = data;
+                prefetchedGameData[matchId] = data; // Cache for future use
+                setStatusMessage(loadStatusEl, 'Game data loaded successfully!', 'success');
+                initializeGame();
+                replayUIContainerEl.classList.remove('opacity-50');
+            } catch (error) {
+                console.error('Error loading game data:', error);
+                setStatusMessage(loadStatusEl, `Error: ${error.message}`, 'error');
+                loadedGameData = null;
+                resetUIState();
+            } finally {
+                loadDataBtn.disabled = false;
+            }
         }
         function resetUIState() {
             pausePlayback(); replayUIContainerEl.classList.add('opacity-50');
@@ -1397,7 +1492,7 @@ Include all interesting stats and findings
                 playerPointsPerSet: calculatePlayerPointsPerSet(sortedEvents, loadedGameData, teamAId, teamBId),
                 leadChangesMaxLeads: calculateLeadChangesAndMaxLeads(sortedEvents, teamAId, teamBId),
                 timeoutPerformance: calculateTimeoutPerformance(sortedEvents, teamAId, teamBId),
-                servingStreaks: calculateServingStreaks(sortedEvents, loadedGameData, teamAId, teamBId),
+                servingStreaks: calculateServingStreaks(loadedGameData, teamAId, teamBId),
                 serveReceivePoints: calculateServeReceiveAndBreakPoints(sortedEvents, teamAId, teamBId),
                 avgPointsServiceTurn: calculateAveragePointsPerServiceTurn(sortedEvents, teamAId, teamBId)
             };

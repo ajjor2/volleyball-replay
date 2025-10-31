@@ -29,7 +29,7 @@ const synthetic = {
     }
 };
 
-const streaks = calculateServingStreaks(synthetic.match.events, synthetic, 'A', 'B');
+const streaks = calculateServingStreaks(synthetic, 'A', 'B');
 
 // Expect exact streaks produced by the simulation:
 // - Alice (A1) serves first and team scores twice -> streak 2 in set 1

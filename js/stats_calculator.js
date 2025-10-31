@@ -217,14 +217,21 @@ export function calculateGameStats(matchDetail) {
  * Calculate longest serving streaks per player given game events and lineup data.
  * Returns array of { name, shirt, teamSymbol, maxStreak } sorted by descending maxStreak.
  */
-export function calculateServingStreaks(gameSortedEvents, lineupData, teamAId_param, teamBId_param) {
+export function calculateServingStreaks(loadedGameData, teamAId_param, teamBId_param) {
     // New behavior: return all serving streaks of length >= 2.
     // Each entry: { playerId, name, shirt, teamSymbol, setNum, streak }
-    if (!lineupData || !lineupData.match || !Array.isArray(lineupData.match.lineups) || !Array.isArray(gameSortedEvents)) return [];
+    if (!loadedGameData || !loadedGameData.match || !Array.isArray(loadedGameData.match.lineups) || !Array.isArray(loadedGameData.match.events)) return [];
+
+    const gameSortedEvents = [...loadedGameData.match.events].sort((a, b) => {
+        if (!a.wall_time || !b.wall_time) return 0;
+        if (a.wall_time < b.wall_time) return -1;
+        if (a.wall_time > b.wall_time) return 1;
+        return 0;
+    });
 
     // Map playerId -> meta info
     const playerInfo = {};
-    lineupData.match.lineups.forEach(p => {
+    loadedGameData.match.lineups.forEach(p => {
         const pid = String(p.player_id);
         playerInfo[pid] = { name: p.player_name || '', shirt: p.shirt_number || '', teamSymbol: p.team_id === teamAId_param ? 'A' : 'B', rawTeamId: p.team_id };
     });
@@ -233,8 +240,8 @@ export function calculateServingStreaks(gameSortedEvents, lineupData, teamAId_pa
     const getPlayerMeta = (pid) => {
         const spid = String(pid);
         if (playerInfo[spid]) return playerInfo[spid];
-        // Try to find in lineupData by matching loosely
-        const found = lineupData.match.lineups.find(p => String(p.player_id) === spid || p.player_id === pid || String(p.player_id) === String(Number(spid)));
+        // Try to find in loadedGameData by matching loosely
+        const found = loadedGameData.match.lineups.find(p => String(p.player_id) === spid || p.player_id === pid || String(p.player_id) === String(Number(spid)));
         if (found) {
             const meta = { name: found.player_name || '', shirt: found.shirt_number || '', teamSymbol: found.team_id === teamAId_param ? 'A' : 'B', rawTeamId: found.team_id };
             playerInfo[spid] = meta; // cache
@@ -248,7 +255,7 @@ export function calculateServingStreaks(gameSortedEvents, lineupData, teamAId_pa
 
     const setStartingLineup = (setNum) => {
         positionsA = {}; positionsB = {};
-        lineupData.match.lineups.forEach(p => {
+        loadedGameData.match.lineups.forEach(p => {
             const pid = String(p.player_id);
             if (p.playing_position && p.playing_position[setNum]) {
                 const zone = p.playing_position[setNum];
@@ -267,8 +274,8 @@ export function calculateServingStreaks(gameSortedEvents, lineupData, teamAId_pa
         if (teamSymbol === 'A') positionsA = next; else positionsB = next;
     };
 
-    const subs = Array.isArray(lineupData.match.substitution_events) && lineupData.match.substitution_events.length > 0
-        ? lineupData.match.substitution_events
+    const subs = Array.isArray(loadedGameData.match.substitution_events) && loadedGameData.match.substitution_events.length > 0
+        ? loadedGameData.match.substitution_events
         : gameSortedEvents.filter(e => e.code === 'vaihto');
 
     const applySub = (sub) => {
