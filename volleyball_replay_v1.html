@@ -379,6 +379,7 @@
         const API_BASE_URL = "https://lentopallo-api.torneopal.net/taso/rest/";
         const ALLOWED_HOSTNAME = "lentopallo-api.torneopal.net";
         const playbackSpeed = 1500;
+        const AI_MODEL = "openai/gpt-3.5-turbo";
 
         // Network helper: try direct fetch, then local proxy (if localhost), then a list of public proxies.
         async function fetchWithFallback(targetUrl, options = {}) {
@@ -1130,7 +1131,7 @@ Include all interesting stats and findings
                         "Content-Type": "application/json"
                     },
                     body: JSON.stringify({
-                        "model": "openai/gpt-3.5-turbo", // You can change this to any model on OpenRouter
+                        "model": AI_MODEL, // You can change this to any model on OpenRouter
                         "messages": [
                             { "role": "user", "content": prompt }
                         ]
@@ -1152,7 +1153,7 @@ Include all interesting stats and findings
                 ];
 
                 // Basic formatting for display
-                let formattedAnalysis = analysis
+                let formattedAnalysis = escapeHTML(analysis)
                     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') // Bold
                     .replace(/\n/g, '<br>');
 
@@ -1216,7 +1217,7 @@ Include all interesting stats and findings
                         "Content-Type": "application/json"
                     },
                     body: JSON.stringify({
-                        "model": "openai/gpt-3.5-turbo",
+                        "model": AI_MODEL,
                         "messages": aiConversationHistory // Send the whole conversation
                     })
                 });
@@ -1235,7 +1236,7 @@ Include all interesting stats and findings
                 aiConversationHistory.push({ "role": "assistant", "content": followUpResponse });
 
                 // Append the response to the output area
-                let formattedResponse = followUpResponse
+                let formattedResponse = escapeHTML(followUpResponse)
                     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
                     .replace(/\n/g, '<br>');
 
