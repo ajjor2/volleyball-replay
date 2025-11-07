@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Volleyball Stats Analyzer v2</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .view { display: none; }
+        .active-view { display: block; }
+        /* Simple loading spinner */
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 4px solid #3498db;
+            width: 40px;
+            height: 40px;
+            animation: spin 2s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+
+    <div id="app" class="container mx-auto p-4">
+        <h1 class="text-3xl font-bold text-center mb-4">Volleyball Stats Analyzer v2</h1>
+
+        <!-- Main Input -->
+        <div id="main-input-view" class="mb-6">
+            <label for="team-id" class="block mb-2 text-sm font-medium text-gray-900">Team ID:</label>
+            <div class="flex">
+                <input type="text" id="team-id" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-l-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5" placeholder="e.g., 57672">
+                <button id="load-data-btn" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-r-lg">Load</button>
+            </div>
+             <div id="loading-indicator" class="loader mt-4 mx-auto" style="display: none;"></div>
+        </div>
+
+        <!-- Tab Navigation -->
+        <div id="tabs" class="mb-4 border-b border-gray-200" style="display: none;">
+            <nav class="flex space-x-4" aria-label="Tabs">
+                <button id="tab-team-info" class="tab-btn px-3 py-2 font-medium text-sm rounded-t-lg border-b-2 border-transparent">Team Info & Roles</button>
+                <button id="tab-match-list" class="tab-btn px-3 py-2 font-medium text-sm rounded-t-lg border-b-2 border-transparent">Match List</button>
+            </nav>
+        </div>
+
+        <!-- Views Container -->
+        <div id="views-container">
+            <!-- Team Info / Roles View -->
+            <div id="team-info-view" class="view">
+                <h2 class="text-2xl font-bold mb-2">Team Info & Roles</h2>
+                <div id="team-info-content"></div>
+            </div>
+
+            <!-- Match List View -->
+            <div id="match-list-view" class="view">
+                <h2 class="text-2xl font-bold mb-2">Match List</h2>
+                <div id="match-list-content"></div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="text-center text-xs text-gray-500 p-4">
+        <p>Note: If data fails to load, a CORS proxy may be required to access the API.</p>
+    </footer>
+
+    <script>
+        // --- VIEW MANAGEMENT ---
+        const views = {
+            'team-info': document.getElementById('team-info-view'),
+            'match-list': document.getElementById('match-list-view')
+        };
+        const tabs = {
+            'team-info': document.getElementById('tab-team-info'),
+            'match-list': document.getElementById('tab-match-list')
+        };
+
+        function showView(viewName) {
+            Object.values(views).forEach(view => view.classList.remove('active-view'));
+            Object.values(tabs).forEach(tab => tab.classList.remove('border-blue-500', 'text-blue-600'));
+
+            if (views[viewName]) {
+                views[viewName].classList.add('active-view');
+            }
+            if (tabs[viewName]) {
+                tabs[viewName].classList.add('border-blue-500', 'text-blue-600');
+            }
+        }
+
+        // --- EVENT LISTENERS ---
+        document.addEventListener('DOMContentLoaded', () => {
+             document.getElementById('tab-team-info').addEventListener('click', () => {
+                renderTeamInfo(currentTeamData);
+                showView('team-info');
+             });
+             document.getElementById('tab-match-list').addEventListener('click', () => renderMatchList(currentMatchesData));
+             document.getElementById('load-data-btn').addEventListener('click', loadTeamData);
+        });
+
+        // --- API & DATA HANDLING ---
+        let currentTeamData = null;
+        let currentMatchesData = null;
+        const API_BASE_URL = 'https://lentopallo-api.torneopal.net/taso/rest/';
+        const CACHE_EXPIRATION_MS = 60 * 60 * 1000; // 1 hour
+
+        async function fetchData(url) {
+            const cacheKey = `cache_${url}`;
+            const cachedItem = localStorage.getItem(cacheKey);
+
+            if (cachedItem) {
+                const { timestamp, data } = JSON.parse(cachedItem);
+                if (Date.now() - timestamp < CACHE_EXPIRATION_MS) {
+                    return data;
+                } else {
+                    localStorage.removeItem(cacheKey);
+                }
+            }
+
+            const response = await fetch(url);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const data = await response.json();
+
+            const itemToCache = { timestamp: Date.now(), data: data };
+            localStorage.setItem(cacheKey, JSON.stringify(itemToCache));
+            return data;
+        }
+
+        async function loadTeamData() {
+            const teamId = document.getElementById('team-id').value.trim();
+            if (!teamId) {
+                alert('Please enter a Team ID.');
+                return;
+            }
+
+            const loadingIndicator = document.getElementById('loading-indicator');
+            loadingIndicator.style.display = 'block';
+            document.getElementById('tabs').style.display = 'none';
+
+            try {
+                const teamUrl = `${API_BASE_URL}getTeam?team_id=${teamId}`;
+                const matchesUrl = `${API_BASE_URL}getMatches?team_id=${teamId}`;
+
+                // Fetch in parallel
+                const [teamData, matchesData] = await Promise.all([
+                    fetchData(teamUrl),
+                    fetchData(matchesUrl)
+                ]);
+
+                currentTeamData = teamData;
+                currentMatchesData = matchesData;
+
+                renderTeamInfo(teamData);
+                document.getElementById('tabs').style.display = 'block';
+                showView('team-info');
+
+            } catch (error) {
+                console.error("Failed to load team data:", error);
+                alert('Failed to load data. Please check the Team ID and your network connection.');
+            } finally {
+                loadingIndicator.style.display = 'none';
+            }
+        }
+
+        function renderTeamInfo(teamData) {
+            const contentDiv = document.getElementById('team-info-content');
+            contentDiv.textContent = '';
+
+            const teamId = teamData.team.id;
+            const roles = loadRoles(teamId);
+
+            const table = document.createElement('table');
+            table.className = 'min-w-full bg-white border';
+
+            const thead = document.createElement('thead');
+            thead.innerHTML = `
+                <tr class="bg-gray-200 text-left">
+                    <th class="py-2 px-4 border-b">Player</th>
+                    <th class="py-2 px-4 border-b">Role</th>
+                </tr>
+            `;
+            table.appendChild(thead);
+
+            const tbody = document.createElement('tbody');
+            teamData.team.players.forEach(player => {
+                const tr = document.createElement('tr');
+                const nameTd = document.createElement('td');
+                nameTd.className = 'py-2 px-4 border-b';
+                nameTd.textContent = player.name;
+                tr.appendChild(nameTd);
+
+                const roleTd = document.createElement('td');
+                roleTd.className = 'py-2 px-4 border-b';
+
+                const select = document.createElement('select');
+                select.className = 'border rounded p-1';
+                select.dataset.playerId = player.id;
+
+                const rolesList = ['N/A', 'Setter', 'Outside Hitter', 'Middle Blocker', 'Opposite', 'Libero'];
+                rolesList.forEach(role => {
+                    const option = document.createElement('option');
+                    option.value = role;
+                    option.textContent = role;
+                    if (roles[player.id] === role) {
+                        option.selected = true;
+                    }
+                    select.appendChild(option);
+                });
+
+                select.addEventListener('change', (e) => {
+                    saveRole(teamId, player.id, e.target.value);
+                });
+
+                roleTd.appendChild(select);
+                tr.appendChild(roleTd);
+                tbody.appendChild(tr);
+            });
+
+            table.appendChild(tbody);
+            contentDiv.appendChild(table);
+        }
+
+        function saveRole(teamId, playerId, role) {
+            const roles = loadRoles(teamId);
+            roles[playerId] = role;
+            localStorage.setItem(`roles_${teamId}`, JSON.stringify(roles));
+        }
+
+        function loadRoles(teamId) {
+            return JSON.parse(localStorage.getItem(`roles_${teamId}`)) || {};
+        }
+
+        function renderMatchList(matchesData) {
+            const contentDiv = document.getElementById('match-list-content');
+            contentDiv.textContent = '';
+            showView('match-list');
+
+            if (!matchesData.matches || matchesData.matches.length === 0) {
+                contentDiv.textContent = 'No matches found for this team.';
+                return;
+            }
+
+            const table = document.createElement('table');
+            table.className = 'min-w-full bg-white border';
+
+            const thead = document.createElement('thead');
+            thead.innerHTML = `
+                <tr class="bg-gray-200 text-left">
+                    <th class="py-2 px-4 border-b">Date</th>
+                    <th class="py-2 px-4 border-b">Match</th>
+                    <th class="py-2 px-4 border-b">Score</th>
+                </tr>
+            `;
+            table.appendChild(thead);
+
+            const tbody = document.createElement('tbody');
+            matchesData.matches.forEach(match => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-gray-100';
+
+                const dateTd = document.createElement('td');
+                dateTd.className = 'py-2 px-4 border-b';
+                dateTd.textContent = new Date(match.date).toLocaleDateString();
+                tr.appendChild(dateTd);
+
+                const matchTd = document.createElement('td');
+                matchTd.className = 'py-2 px-4 border-b';
+                matchTd.textContent = `${match.team_A_name} vs ${match.team_B_name}`;
+                tr.appendChild(matchTd);
+
+                const scoreTd = document.createElement('td');
+                scoreTd.className = 'py-2 px-4 border-b';
+                scoreTd.textContent = match.fs_A !== null ? `${match.fs_A} - ${match.fs_B}` : 'Not Played';
+                tr.appendChild(scoreTd);
+
+                tbody.appendChild(tr);
+            });
+
+            table.appendChild(tbody);
+            contentDiv.appendChild(table);
+        }
+    </script>
+
+</body>
+</html>
