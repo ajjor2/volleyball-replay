@@ -106,7 +106,29 @@
         const API_BASE_URL = 'https://lentopallo-api.torneopal.net/taso/rest/';
         const CACHE_EXPIRATION_MS = 60 * 60 * 1000; // 1 hour
 
-        async function fetchData(url) {
+        async function extractToken() {
+            const proxyUrl = 'https://api.allorigins.win/get?url=';
+            const siteUrl = encodeURIComponent('https://tulospalvelu.lentopallo.fi/');
+
+            try {
+                const response = await fetch(proxyUrl + siteUrl);
+                const data = await response.json();
+                const html = data.contents;
+
+                const match = html.match(/apiConfig\s*=\s*\{[^}]*version\s*:\s*'([^']+)'/i);
+                if (match) return match[1];
+
+                const fallbackMatch = html.match(/'json\/([^']+)'/i);
+                if (fallbackMatch) return fallbackMatch[1];
+
+                throw new Error('Token not found in HTML');
+            } catch (error) {
+                console.error('Extraction error:', error);
+                return 'df8e84j9xtdz269euy3h'; // Hardcoded fallback
+            }
+        }
+
+        async function fetchData(url, requires_token = false) {
             const cacheKey = `cache_${url}`;
             const cachedItem = localStorage.getItem(cacheKey);
 
@@ -119,12 +141,32 @@
                 }
             }
 
-            const response = await fetch(url);
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+            let headers = {};
+            if(requires_token) {
+                const token = await extractToken();
+                headers = {
+                    'accept': `json/${token}`,
+                    'accept-language': 'en-GB,en-US;q=0.9,en;q=0.8',
+                    'origin': 'https://tulospalvelu.lentopallo.fi',
+                    'referer': 'https://tulospalvelu.lentopallo.fi/',
+                    'sec-ch-ua': '"Google Chrome";v="141", "Not?A_Brand";v="8", "Chromium";v="141"',
+                    'sec-ch-ua-mobile': '?0',
+                    'sec-ch-ua-platform': '"Windows"',
+                    'sec-fetch-dest': 'empty',
+                    'sec-fetch-mode': 'cors',
+                    'sec-fetch-site': 'cross-site',
+                    'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36',
+                    'priority': 'u=1, i'
+                };
             }
-            const data = await response.json();
 
+            const response = await fetch(url, { method: 'GET', headers });
+            if (!response.ok) {
+                const err = await response.text();
+                throw new Error(`API Error: ${response.status} - ${err}`);
+            }
+
+            const data = await response.json();
             const itemToCache = { timestamp: Date.now(), data: data };
             localStorage.setItem(cacheKey, JSON.stringify(itemToCache));
             return data;
@@ -143,12 +185,12 @@
 
             try {
                 const teamUrl = `${API_BASE_URL}getTeam?team_id=${teamId}`;
-                const matchesUrl = `${API_BASE_URL}getMatches?team_id=${teamId}`;
+                const matchesUrl = `${API_BASE_URL}getMatches?team_id=${teamId}&details=1`;
 
                 // Fetch in parallel
                 const [teamData, matchesData] = await Promise.all([
-                    fetchData(teamUrl),
-                    fetchData(matchesUrl)
+                    fetchData(teamUrl, true), // getTeam requires token
+                    fetchData(matchesUrl, false) // getMatches does not require token
                 ]);
 
                 currentTeamData = teamData;
