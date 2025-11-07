@@ -187,18 +187,29 @@
                 const teamUrl = `${API_BASE_URL}getTeam?team_id=${teamId}`;
                 const matchesUrl = `${API_BASE_URL}getMatches?team_id=${teamId}&details=1`;
 
-                // Fetch in parallel
-                const [teamData, matchesData] = await Promise.all([
+                const results = await Promise.allSettled([
                     fetchData(teamUrl, true), // getTeam requires token
                     fetchData(matchesUrl, false) // getMatches does not require token
                 ]);
 
-                currentTeamData = teamData;
-                currentMatchesData = matchesData;
+                const [teamResult, matchesResult] = results;
 
-                renderTeamInfo(teamData);
+                currentTeamData = teamResult.status === 'fulfilled' ? teamResult.value : null;
+                currentMatchesData = matchesResult.status === 'fulfilled' ? matchesResult.value : null;
+
+                if (!currentTeamData && !currentMatchesData) {
+                    throw new Error("Both team and matches data failed to load.");
+                }
+
                 document.getElementById('tabs').style.display = 'block';
-                showView('team-info');
+
+                if (currentTeamData) {
+                    renderTeamInfo(currentTeamData);
+                    showView('team-info');
+                } else {
+                    renderMatchList(currentMatchesData);
+                    showView('match-list');
+                }
 
             } catch (error) {
                 console.error("Failed to load team data:", error);
@@ -211,6 +222,12 @@
         function renderTeamInfo(teamData) {
             const contentDiv = document.getElementById('team-info-content');
             contentDiv.textContent = '';
+            showView('team-info');
+
+            if (!teamData) {
+                contentDiv.textContent = 'Could not load team roster. The API may be down or the Team ID may be incorrect.';
+                return;
+            }
 
             const teamId = teamData.team.id;
             const roles = loadRoles(teamId);
@@ -280,6 +297,11 @@
             const contentDiv = document.getElementById('match-list-content');
             contentDiv.textContent = '';
             showView('match-list');
+
+            if (!matchesData) {
+                contentDiv.textContent = 'Could not load match list. The API may be down or the Team ID may be incorrect.';
+                return;
+            }
 
             if (!matchesData.matches || matchesData.matches.length === 0) {
                 contentDiv.textContent = 'No matches found for this team.';
