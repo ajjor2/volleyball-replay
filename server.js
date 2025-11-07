@@ -13,7 +13,7 @@ const PUBLIC_DIR = path.resolve(__dirname);
 
 function serveStatic(req, res, pathname) {
   let filePath = path.join(PUBLIC_DIR, pathname);
-  if (pathname === '/' || pathname === '') filePath = path.join(PUBLIC_DIR, 'volleyball_replay_v1.html');
+  if (pathname === '/' || pathname === '') filePath = path.join(PUBLIC_DIR, 'volleyball-stats.html');
   fs.stat(filePath, (err, stats) => {
     if (err || !stats.isFile()) {
       res.writeHead(404, { 'Content-Type': 'text/plain' });
@@ -73,7 +73,7 @@ const server = http.createServer((req, res) => {
   }
   // Serve static files for everything else
   let pathname = decodeURIComponent(parsed.pathname.replace(/\.\./g, ''));
-  if (pathname === '/') pathname = '/volleyball_replay_v1.html';
+  if (pathname === '/') pathname = '/volleyball-stats.html';
   serveStatic(req, res, pathname);
 });
 

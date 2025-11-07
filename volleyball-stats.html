@@ -3,9 +3,62 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Volleyball Stats Analyzer v2</title>
+    <title>Volleyball Stats Analyzer</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="js/stats_calculator.js"></script>
+</head>
+<body class="bg-gray-100 text-gray-800">
+
+    <div id="app" class="container mx-auto p-4">
+        <h1 class="text-3xl font-bold text-center mb-4">Volleyball Stats Analyzer</h1>
+
+        <!-- Main Input -->
+        <div id="main-input-view" class="mb-6">
+            <label for="team-id" class="block mb-2 text-sm font-medium text-gray-900">Team ID:</label>
+            <div class="flex">
+                <input type="text" id="team-id" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-l-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5" placeholder="e.g., 57672">
+                <button id="load-data-btn" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-r-lg">Load</button>
+            </div>
+        </div>
+
+        <!-- Tab Navigation -->
+        <div id="tabs" class="mb-4 border-b border-gray-200" style="display: none;">
+            <nav class="flex space-x-4" aria-label="Tabs">
+                <button id="tab-team-info" class="tab-btn px-3 py-2 font-medium text-sm rounded-t-lg border-b-2 border-transparent">Team Info & Roles</button>
+                <button id="tab-match-list" class="tab-btn px-3 py-2 font-medium text-sm rounded-t-lg border-b-2 border-transparent">Match List</button>
+                <button id="tab-stats" class="tab-btn px-3 py-2 font-medium text-sm rounded-t-lg border-b-2 border-transparent">Aggregated Stats</button>
+            </nav>
+        </div>
+
+        <!-- Views Container -->
+        <div id="views-container">
+            <!-- Team Info / Roles View -->
+            <div id="team-info-view" class="view">
+                <h2 class="text-2xl font-bold mb-2">Team Info & Roles</h2>
+                <div id="team-info-content"></div>
+            </div>
+
+            <!-- Match List View -->
+            <div id="match-list-view" class="view">
+                <h2 class="text-2xl font-bold mb-2">Match List</h2>
+                <div id="match-list-content"></div>
+            </div>
+
+            <!-- Aggregated Stats View -->
+            <div id="stats-view" class="view">
+                <h2 class="text-2xl font-bold mb-2">Aggregated Season Statistics</h2>
+                <div id="stats-content"></div>
+            </div>
+        </div>
+
+        <div id="loading-indicator" class="loader mt-4 mx-auto" style="display: none;"></div>
+    </div>
+
+    <footer class="text-center text-xs text-gray-500 p-4">
+        <p>Note: If data fails to load, a CORS proxy may be required to access the API.</p>
+    </footer>
+
     <style>
         .view { display: none; }
         .active-view { display: block; }
@@ -23,59 +76,18 @@
             100% { transform: rotate(360deg); }
         }
     </style>
-</head>
-<body class="bg-gray-100 text-gray-800">
-
-    <div id="app" class="container mx-auto p-4">
-        <h1 class="text-3xl font-bold text-center mb-4">Volleyball Stats Analyzer v2</h1>
-
-        <!-- Main Input -->
-        <div id="main-input-view" class="mb-6">
-            <label for="team-id" class="block mb-2 text-sm font-medium text-gray-900">Team ID:</label>
-            <div class="flex">
-                <input type="text" id="team-id" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-l-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5" placeholder="e.g., 57672">
-                <button id="load-data-btn" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-r-lg">Load</button>
-            </div>
-             <div id="loading-indicator" class="loader mt-4 mx-auto" style="display: none;"></div>
-        </div>
-
-        <!-- Tab Navigation -->
-        <div id="tabs" class="mb-4 border-b border-gray-200" style="display: none;">
-            <nav class="flex space-x-4" aria-label="Tabs">
-                <button id="tab-team-info" class="tab-btn px-3 py-2 font-medium text-sm rounded-t-lg border-b-2 border-transparent">Team Info & Roles</button>
-                <button id="tab-match-list" class="tab-btn px-3 py-2 font-medium text-sm rounded-t-lg border-b-2 border-transparent">Match List</button>
-            </nav>
-        </div>
-
-        <!-- Views Container -->
-        <div id="views-container">
-            <!-- Team Info / Roles View -->
-            <div id="team-info-view" class="view">
-                <h2 class="text-2xl font-bold mb-2">Team Info & Roles</h2>
-                <div id="team-info-content"></div>
-            </div>
-
-            <!-- Match List View -->
-            <div id="match-list-view" class="view">
-                <h2 class="text-2xl font-bold mb-2">Match List</h2>
-                <div id="match-list-content"></div>
-            </div>
-        </div>
-    </div>
-
-    <footer class="text-center text-xs text-gray-500 p-4">
-        <p>Note: If data fails to load, a CORS proxy may be required to access the API.</p>
-    </footer>
 
     <script>
         // --- VIEW MANAGEMENT ---
         const views = {
             'team-info': document.getElementById('team-info-view'),
-            'match-list': document.getElementById('match-list-view')
+            'match-list': document.getElementById('match-list-view'),
+            'stats': document.getElementById('stats-view')
         };
         const tabs = {
             'team-info': document.getElementById('tab-team-info'),
-            'match-list': document.getElementById('tab-match-list')
+            'match-list': document.getElementById('tab-match-list'),
+            'stats': document.getElementById('tab-stats')
         };
 
         function showView(viewName) {
@@ -97,6 +109,7 @@
                 showView('team-info');
              });
              document.getElementById('tab-match-list').addEventListener('click', () => renderMatchList(currentMatchesData));
+             document.getElementById('tab-stats').addEventListener('click', () => processAndShowStats());
              document.getElementById('load-data-btn').addEventListener('click', loadTeamData);
         });
 
@@ -347,7 +360,103 @@
             table.appendChild(tbody);
             contentDiv.appendChild(table);
         }
-    </script>
 
+        async function processAndShowStats() {
+            if (!currentMatchesData || !currentTeamData) {
+                alert("Match data not loaded yet.");
+                return;
+            }
+
+            const loadingIndicator = document.getElementById('loading-indicator');
+            loadingIndicator.style.display = 'block';
+            showView('stats');
+            const contentDiv = document.getElementById('stats-content');
+            contentDiv.textContent = 'Calculating...';
+
+            const teamId = currentTeamData.team.id;
+            const playedMatches = currentMatchesData.matches.filter(m => m.status === 'Played');
+            const aggregateStats = {
+                totalPlayerPoints: {},
+                totalPlayerServes: {},
+                totalImpliedErrorsMade: 0,
+                totalOpponentImpliedErrors: 0,
+                gamesPlayed: playedMatches.length
+            };
+
+            const matchPromises = playedMatches.map(match => {
+                const matchUrl = `${API_BASE_URL}getMatch?match_id=${match.match_id}`;
+                return fetchData(matchUrl, false);
+            });
+
+            try {
+                const matchResults = await Promise.all(matchPromises);
+
+                matchResults.forEach(matchData => {
+                    const singleMatchStats = calculateMatchStats(matchData, teamId);
+
+                    for (const playerId in singleMatchStats.playerPoints) {
+                        aggregateStats.totalPlayerPoints[playerId] = (aggregateStats.totalPlayerPoints[playerId] || 0) + singleMatchStats.playerPoints[playerId];
+                    }
+                    for (const playerId in singleMatchStats.playerServes) {
+                        aggregateStats.totalPlayerServes[playerId] = (aggregateStats.totalPlayerServes[playerId] || 0) + singleMatchStats.playerServes[playerId];
+                    }
+                    aggregateStats.totalImpliedErrorsMade += singleMatchStats.impliedErrorsMade;
+                    aggregateStats.totalOpponentImpliedErrors += singleMatchStats.opponentImpliedErrors;
+                });
+
+                renderAggregatedStats(aggregateStats, currentTeamData.team.players);
+            } catch (error) {
+                console.error("Error processing matches:", error);
+                contentDiv.textContent = 'An error occurred during statistics calculation.';
+            } finally {
+                loadingIndicator.style.display = 'none';
+            }
+        }
+
+        function renderAggregatedStats(stats, players) {
+            const contentDiv = document.getElementById('stats-content');
+            contentDiv.textContent = '';
+
+            const playerMap = new Map(players.map(p => [p.id, p.name]));
+
+            const table = document.createElement('table');
+            table.className = 'min-w-full bg-white border';
+            const thead = document.createElement('thead');
+            thead.innerHTML = `
+                <tr class="bg-gray-200 text-left">
+                    <th class="py-2 px-4 border-b">Player</th>
+                    <th class="py-2 px-4 border-b">Total Points</th>
+                    <th class="py-2 px-4 border-b">Total Serves</th>
+                </tr>
+            `;
+            table.appendChild(thead);
+
+            const tbody = document.createElement('tbody');
+            for (const playerId in stats.totalPlayerPoints) {
+                const tr = document.createElement('tr');
+                const name = playerMap.get(playerId) || `Unknown Player (ID: ${playerId})`;
+
+                tr.innerHTML = `
+                    <td class="py-2 px-4 border-b">${name}</td>
+                    <td class="py-2 px-4 border-b">${stats.totalPlayerPoints[playerId] || 0}</td>
+                    <td class="py-2 px-4 border-b">${stats.totalPlayerServes[playerId] || 0}</td>
+                `;
+                tbody.appendChild(tr);
+            }
+            table.appendChild(tbody);
+            contentDiv.appendChild(table);
+
+            const summaryDiv = document.createElement('div');
+            summaryDiv.className = 'mt-4 p-4 bg-white border rounded';
+            summaryDiv.innerHTML = `
+                <h3 class="text-xl font-bold mb-2">Team Summary</h3>
+                <p><strong>Games Analyzed:</strong> ${stats.gamesPlayed}</p>
+                <p><strong>Implied Errors Made:</strong> ${stats.totalImpliedErrorsMade}</p>
+                <p><strong>Opponent Implied Errors:</strong> ${stats.totalOpponentImpliedErrors}</p>
+            `;
+            contentDiv.appendChild(summaryDiv);
+        }
+
+    </script>
 </body>
 </html>
